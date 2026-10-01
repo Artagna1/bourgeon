@@ -259,14 +259,15 @@
         return push();
       }
       if (plan.use === 'remote') {
-        B.store.update(function (d) {
-          var incoming = { version: B.store.VERSION };
-          SECTIONS.forEach(function (s) { incoming[s] = d[s]; });
-          plan.rows.forEach(function (r) { incoming[r.section] = r.data; meta.seen[r.section] = r.updated_at; });
-          var parsed = B.store.parse(JSON.stringify(incoming)).data;   // complète les rubriques manquantes
-          SECTIONS.forEach(function (s) { d[s] = parsed[s]; });
-        });
-        takeSnapshots();
+        // On remplace les modules par ceux du compte SANS les marquer « à
+        // envoyer » (applySection met l'instantané à jour avant l'enregistrement).
+        var d = B.store.get();
+        var incoming = { version: B.store.VERSION };
+        SECTIONS.forEach(function (s) { incoming[s] = d[s]; });
+        plan.rows.forEach(function (r) { incoming[r.section] = r.data; meta.seen[r.section] = r.updated_at; });
+        var parsed = B.store.parse(JSON.stringify(incoming)).data;   // complète les rubriques manquantes
+        SECTIONS.forEach(function (s) { applySection(s, parsed[s]); });
+        B.store.save();
         saveMeta();
         if (B.app && B.app.refresh) B.app.refresh();
       }
@@ -295,6 +296,19 @@
       ), function (value) { resolve(value === 'local' ? 'local' : 'remote'); });
       dlg.querySelector('.btn-primary').focus();
     });
+  }
+
+  /*
+   * Secours : renvoie TOUS les modules de cet appareil vers le compte (ils
+   * deviennent la version la plus récente et remplacent celle des autres
+   * appareils à leur prochaine synchro).
+   */
+  function forceUpload() {
+    if (!user) return Promise.resolve();
+    var now = new Date().toISOString();
+    SECTIONS.forEach(function (s) { meta.dirty[s] = now; });
+    saveMeta();
+    return push().then(function () { setStatus(pendingCount() ? 'pending' : 'ok'); }, fail);
   }
 
   /* ---------- Compte ---------- */
@@ -385,7 +399,7 @@
   }
 
   B.sync = {
-    init: init, sync: sync, signIn: signIn, signUp: signUp, signOut: signOut, enabled: enabled,
+    init: init, sync: sync, signIn: signIn, signUp: signUp, signOut: signOut, enabled: enabled, forceUpload: forceUpload,
     status: function () { return { status: status, detail: statusDetail, email: user && user.email, pending: meta ? pendingCount() : 0 }; },
     onStatus: function (fn) { statusListeners.push(fn); },
     logic: { SECTIONS: SECTIONS, changedSections: changedSections, mergeJournal: mergeJournal, resolveConflict: resolveConflict, isEmpty: isEmpty }

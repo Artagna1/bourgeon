@@ -145,6 +145,19 @@
       box.appendChild(h('div', { class: 'backup-actions' },
         h('button', { type: 'button', class: 'btn', onclick: function () { B.sync.sync(); } }, icon('arrows-clockwise'), 'Synchroniser maintenant'),
         h('button', { type: 'button', class: 'btn btn-ghost', onclick: function () { B.sync.signOut(); } }, 'Se déconnecter')));
+      box.appendChild(h('button', {
+        type: 'button', class: 'btn btn-ghost sync-force',
+        onclick: function () {
+          B.ui.confirm({
+            title: 'Renvoyer les données de cet appareil ?',
+            message: 'Les données de cet appareil (' + summary(B.store.get()) + ') vont remplacer celles du compte. ' +
+              'Les autres appareils les recevront à leur prochaine synchronisation.
+
+À utiliser si un autre appareil n'affiche pas les bonnes données.',
+            confirmLabel: 'Renvoyer', danger: true
+          }).then(function (ok) { if (ok) B.sync.forceUpload(); });
+        }
+      }, icon('upload-simple'), 'Renvoyer les données de cet appareil vers le compte'));
     }
     B.sync.onStatus(function () { if (box.isConnected) draw(); });
     draw();
