@@ -12,12 +12,13 @@
 (function (B) {
   'use strict';
 
+  /* name = action recommandée (titre affiché), hint = sous-titre, title = croisement urgence / importance. */
   var ZONES = [
-    { id: 0, title: 'Non triées', action: 'Glisser vers un quadrant', tone: 'inbox' },
-    { id: 1, title: 'Urgent · Important', action: 'Faire maintenant', tone: 'q1' },
-    { id: 2, title: 'Important · Pas urgent', action: 'Planifier', tone: 'q2' },
-    { id: 3, title: 'Urgent · Pas important', action: 'Déléguer', tone: 'q3' },
-    { id: 4, title: 'Pas urgent · Pas important', action: 'Éliminer', tone: 'q4' }
+    { id: 0, name: 'Non triées', hint: 'Glisser vers un quadrant', title: 'Non triées', tone: 'inbox' },
+    { id: 1, name: 'Faire', hint: 'Tout de suite', title: 'Urgent · Important', tone: 'q1' },
+    { id: 2, name: 'Planifier', hint: 'Bloquer un créneau', title: 'Important · Pas urgent', tone: 'q2' },
+    { id: 3, name: 'Déléguer', hint: 'Ou expédier vite', title: 'Urgent · Pas important', tone: 'q3' },
+    { id: 4, name: 'Abandonner', hint: 'Ou plus tard', title: 'Pas urgent · Pas important', tone: 'q4' }
   ];
 
   function tasks(data) { return data.eisenhower.tasks; }

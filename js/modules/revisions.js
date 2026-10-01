@@ -22,11 +22,21 @@
   function data() { return B.store.get(); }
   function day() { return RL.today(data()); }
 
-  function render(container, tabId) {
+  function render(container, tabId, ctx) {
     view = tabId === 'today' ? 'today' : 'tree';
     shownDay = day();
     els = { root: h('div', { class: 'revisions' }) };
     container.appendChild(els.root);
+    ctx.actions.appendChild(h('button', { type: 'button', class: 'btn', onclick: openStepTypes }, icon('sliders-horizontal'), 'Rythmes'));
+    if (view === 'tree') {
+      ctx.actions.appendChild(h('button', {
+        type: 'button', class: 'btn btn-primary',
+        onclick: function () {
+          var input = els && els.root.querySelector('.rv-add-subject input');
+          if (input) { input.scrollIntoView({ block: 'center', behavior: 'smooth' }); input.focus(); }
+        }
+      }, icon('plus', null, 'ph-bold'), 'Nouvelle matière'));
+    }
     if (view === 'today') renderToday(); else renderTree();
 
     // La liste se met à jour toute seule au passage de l'heure de début de
@@ -49,68 +59,6 @@
      ====================================================================== */
 
   function renderTree() {
-    var settings = data().revisions.settings;
-
-    // --- Réglages ---
-    var stepsInput = h('input', {
-      class: 'input rv-steps-input', type: 'text', value: RL.formatSteps(settings.defaultSteps),
-      'aria-label': 'Paliers par défaut'
-    });
-    var stepsError = B.ui.formError();
-    var stepsSaved = h('span', { class: 'saved-flash', role: 'status' });
-    var stepsForm = h('form', {
-      class: 'rv-setting', novalidate: true,
-      onsubmit: function (e) {
-        e.preventDefault();
-        var r = B.store.update(function (d) { return RL.setDefaultSteps(d, stepsInput.value); });
-        B.ui.setError(stepsError, r.ok ? '' : r.error);
-        if (r.ok) {
-          stepsInput.value = RL.formatSteps(r.steps);
-          B.ui.flashSaved(stepsSaved);
-          drawTree();
-        }
-      }
-    },
-      h('label', { class: 'rv-label' }, 'Paliers par défaut (jours, séparés par des virgules) :'),
-      h('div', { class: 'rv-inline' }, stepsInput, h('button', { type: 'submit', class: 'btn' }, 'Enregistrer'), stepsSaved)
-    );
-
-    var hourSelect = h('select', {
-      class: 'input rv-hour', 'aria-label': 'Nouvelle journée à partir de',
-      onchange: function () {
-        B.store.update(function (d) { RL.setDayStartHour(d, hourSelect.value); });
-        shownDay = day();
-        drawTree();
-        if (B.app.refreshBadges) B.app.refreshBadges();
-      }
-    });
-    for (var hr = 0; hr <= 11; hr++) {
-      var opt = h('option', { value: String(hr) }, hr === 0 ? '0 h (minuit)' : hr + ' h');
-      if (hr === settings.dayStartHour) opt.selected = true;
-      hourSelect.appendChild(opt);
-    }
-
-    els.root.appendChild(h('section', { class: 'card rv-settings' },
-      h('div', { class: 'rv-settings-row' },
-        stepsForm,
-        h('div', { class: 'rv-setting' },
-          h('span', { class: 'rv-label' }, 'Rythmes nommés'),
-          h('button', { type: 'button', class: 'btn', onclick: openStepTypes }, icon('sliders-horizontal'), 'Gérer les types de paliers…')
-        ),
-        h('div', { class: 'rv-setting' },
-          h('label', { class: 'rv-label' }, 'Nouvelle journée à partir de :'),
-          hourSelect
-        )
-      ),
-      stepsError,
-      h('div', { class: 'rv-legend', 'aria-label': 'Légende des cases de palier' },
-        legendItem('done', 'Fait'),
-        legendItem('late', 'En retard'),
-        legendItem('todo', 'À faire'),
-        legendItem('locked', 'Verrouillé')
-      )
-    ));
-
     // --- Arbre ---
     els.treeError = B.ui.formError();
     els.tree = h('div', { class: 'rv-tree' });
@@ -121,13 +69,19 @@
       els.tree,
       addForm(subjectInput, 'Matière', subjectError, function () {
         return B.store.update(function (d) { return RL.addSubject(d, subjectInput.value); });
-      }, 'rv-add-subject')
+      }, 'rv-add-subject'),
+      h('div', { class: 'rv-legend', 'aria-label': 'Légende des cases de palier' },
+        legendItem('done', 'Fait'),
+        legendItem('late', 'En retard'),
+        legendItem('todo', 'À faire'),
+        legendItem('locked', 'Verrouillé')
+      )
     ));
     drawTree();
   }
 
   function legendItem(state, label) {
-    return h('span', { class: 'rv-legend-item' }, h('span', { class: 'rv-cell sample ' + state }, state === 'done' ? icon('check', null, 'ph-bold') : null), label);
+    return h('span', { class: 'rv-legend-item' }, h('span', { class: 'rv-cell sample ' + state }), label);
   }
 
   /* Petit formulaire « Nouveau … » [+ …] avec sa zone d'erreur. */
@@ -170,14 +124,14 @@
     var cols = 'minmax(0, 1fr) repeat(' + steps.length + ', var(--rv-cell-col)) var(--rv-actions-col)';
 
     var typeSelect = h('select', {
-      class: 'input rv-type', 'aria-label': 'Rythme de ' + s.name, title: 'Rythme de révision',
+      class: 'rv-type', 'aria-label': 'Rythme de ' + s.name, title: 'Rythme de révision (cliquer pour changer)',
       onchange: function () {
         B.store.update(function (dd) { RL.setSubjectStepType(dd, s.id, typeSelect.value); });
         drawTree();
       }
-    }, h('option', { value: '' }, 'Défaut (' + RL.formatSteps(d.revisions.settings.defaultSteps) + ')'),
+    }, h('option', { value: '' }, 'Rythme par défaut'),
       d.revisions.stepTypes.map(function (t) {
-        var o = h('option', { value: t.id }, t.name + ' (' + RL.formatSteps(t.steps) + ')');
+        var o = h('option', { value: t.id }, 'Rythme ' + t.name);
         if (t.id === s.stepTypeId) o.selected = true;
         return o;
       }));
@@ -199,9 +153,9 @@
     return h('section', { class: 'rv-subject' + (collapsed[s.id] ? ' collapsed' : '') + (s.frozenAt ? ' frozen' : '') },
       h('div', { class: 'rv-subject-head' },
         titleButton(s, 'subject', 'rv-subject-title'),
-        s.frozenAt ? h('span', { class: 'badge accent rv-frozen-badge' }, icon('snowflake'), 'gelée') : null,
-        h('span', { class: 'rv-spacer' }),
         typeSelect,
+        s.frozenAt ? h('span', { class: 'badge rv-frozen-badge' }, icon('snowflake'), 'gelée') : null,
+        h('span', { class: 'rv-spacer' }),
         freezeButton('subject', s),
         deleteButton('subject', s)
       ),
@@ -216,7 +170,7 @@
       h('div', { class: 'rv-grid rv-chapter-head', style: 'grid-template-columns:' + cols },
         h('div', { class: 'rv-name-cell' },
           titleButton(ch, 'chapter', 'rv-chapter-title'),
-          ch.frozenAt ? h('span', { class: 'badge accent rv-frozen-badge' }, icon('snowflake'), 'gelé') : null
+          ch.frozenAt ? h('span', { class: 'badge rv-frozen-badge' }, icon('snowflake'), 'gelé') : null
         ),
         h('span', { style: 'grid-column: span ' + steps.length }),
         h('div', { class: 'rv-actions' }, freezeButton('chapter', ch), deleteButton('chapter', ch))
@@ -261,7 +215,7 @@
           });
           drawTree();
         }
-      }, cell.state === 'done' ? icon('check', null, 'ph-bold') : null)
+      })
     );
   }
 
@@ -429,9 +383,40 @@
       }
     }, nameInput, stepsInput, h('button', { type: 'submit', class: 'btn btn-primary' }, icon('plus'), 'Ajouter'));
 
+    var settings = data().revisions.settings;
+    var defaultStepsInput = h('input', { class: 'input rv-steps-input', type: 'text', value: RL.formatSteps(settings.defaultSteps), 'aria-label': 'Paliers par défaut' });
+    var stepsSaved = h('span', { class: 'saved-flash', role: 'status' });
+    var stepsForm = h('form', {
+      class: 'rv-setting', novalidate: true,
+      onsubmit: function (e) {
+        e.preventDefault();
+        var r = B.store.update(function (d) { return RL.setDefaultSteps(d, defaultStepsInput.value); });
+        B.ui.setError(error, r.ok ? '' : r.error);
+        if (r.ok) { defaultStepsInput.value = RL.formatSteps(r.steps); B.ui.flashSaved(stepsSaved); }
+      }
+    },
+      h('label', { class: 'field-label' }, 'Paliers par défaut (jours, séparés par des virgules)'),
+      h('div', { class: 'rv-inline' }, defaultStepsInput, h('button', { type: 'submit', class: 'btn' }, 'Enregistrer'), stepsSaved));
+    var hourSelect = h('select', {
+      class: 'input rv-hour', 'aria-label': 'Nouvelle journée à partir de',
+      onchange: function () {
+        B.store.update(function (d) { RL.setDayStartHour(d, hourSelect.value); });
+        shownDay = day();
+        if (B.app.refreshBadges) B.app.refreshBadges();
+      }
+    });
+    for (var hr = 0; hr <= 11; hr++) {
+      hourSelect.appendChild(h('option', { value: String(hr), selected: hr === settings.dayStartHour }, hr === 0 ? '0 h (minuit)' : hr + ' h'));
+    }
+
     var dlg;
     var content = h('div', { class: 'rv-types-dialog' },
-      h('h2', { class: 'modal-title' }, 'Types de paliers'),
+      h('h2', { class: 'modal-title' }, 'Rythmes de révision'),
+      h('div', { class: 'rv-settings-row' },
+        stepsForm,
+        h('div', { class: 'rv-setting' }, h('label', { class: 'field-label' }, 'Nouvelle journée à partir de'), hourSelect)),
+      B.ui.ornament(),
+      h('h3', { class: 'section-label' }, 'Types de paliers'),
       h('p', { class: 'modal-text' }, 'Un type de palier peut être assigné à plusieurs matières depuis l\'en-tête de chacune. ' +
         'Une matière sans type assigné utilise le réglage « Paliers par défaut ».'),
       list,
@@ -441,7 +426,11 @@
       h('div', { class: 'modal-actions' }, h('button', { type: 'button', class: 'btn', onclick: function () { dlg.finish(); } }, 'Fermer'))
     );
     drawTypes();
-    dlg = B.ui.openDialog(content, function () { drawTree(); });
+    dlg = B.ui.openDialog(content, function () {
+      if (!els) return;
+      B.ui.clear(els.root);
+      if (view === 'today') renderToday(); else renderTree();
+    });
     dlg.classList.add('modal-wide');
     nameInput.focus();
   }

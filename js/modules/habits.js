@@ -2,8 +2,8 @@
  * Bourgeon — module HABITUDES : affichage.
  * Les règles de calcul sont dans habits-logic.js.
  *
- * Onglet MOIS : grille de suivi (nom, cible, fait, reste, %, une case par
- * jour), complétion du mois, classement, aperçu mensuel, récap hebdomadaire.
+ * Onglet MOIS : grille de suivi (nom, fait / cible modifiable, %, un losange
+ * par jour), aperçu du mois, semaines, complétion du mois, classement.
  * Onglet GLOBAL : bilan depuis toujours, habitudes archivées comprises.
  *
  * Pour que la saisie reste fluide, cocher une case ou changer une cible ne
@@ -13,8 +13,6 @@
   'use strict';
 
   var h = B.ui.h, icon = B.ui.icon, D = B.dates, L = B.habitsLogic;
-  var SVG_NS = 'http://www.w3.org/2000/svg';
-  var MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
   var month = null;   // mois affiché "AAAA-MM"
   var els = null;     // éléments de l'écran
@@ -37,27 +35,26 @@
 
     els = {
       prev: h('button', {
-        type: 'button', class: 'btn btn-icon', 'aria-label': 'Mois précédent', title: 'Mois précédent',
+        type: 'button', class: 'btn btn-bare', 'aria-label': 'Mois précédent', title: 'Mois précédent',
         onclick: function () { goToMonth(D.addMonths(month, -1)); }
-      }, icon('caret-left')),
+      }, icon('caret-left', null, 'ph-bold')),
       monthLabel: h('span', { class: 'habits-month-label', 'aria-live': 'polite' }),
       next: h('button', {
-        type: 'button', class: 'btn btn-icon', 'aria-label': 'Mois suivant', title: 'Mois suivant',
+        type: 'button', class: 'btn btn-bare', 'aria-label': 'Mois suivant', title: 'Mois suivant',
         onclick: function () { goToMonth(D.addMonths(month, 1)); }
-      }, icon('caret-right')),
+      }, icon('caret-right', null, 'ph-bold')),
       todayBtn: h('button', { type: 'button', class: 'btn', onclick: function () { goToMonth(D.currentMonth()); } }, 'Aujourd\'hui'),
 
       grid: h('div', { class: 'hgrid', role: 'table', 'aria-label': 'Suivi des habitudes' }),
       newName: h('input', {
         class: 'input', type: 'text', maxlength: '100',
-        placeholder: 'Nouvelle habitude…', 'aria-label': 'Nouvelle habitude'
+        placeholder: 'Inscrire un nouveau rituel…', 'aria-label': 'Nouvelle habitude'
       }),
       error: B.ui.formError(),
 
-      ring: h('div', { class: 'ring' }),
-      ringText: h('div', { class: 'ring-legend' }),
+      ring: h('div', { class: 'ring', role: 'img' }),
       ranking: h('div', { class: 'ranking' }),
-      curve: h('div', { class: 'curve' }),
+      curve: h('div', { class: 'pins' }),
       weeks: h('div', { class: 'weeks' })
     };
 
@@ -68,41 +65,38 @@
 
     var addForm = h('form', { class: 'habits-add', novalidate: true, onsubmit: onAdd },
       els.newName,
-      h('button', { type: 'submit', class: 'btn btn-primary' }, icon('plus'), 'Ajouter')
+      h('button', { type: 'submit', class: 'btn btn-primary' }, icon('plus', null, 'ph-bold'), 'Invoquer')
     );
 
     container.appendChild(h('div', { class: 'habits-month' },
-      h('section', { class: 'card habits-grid-card' },
+      h('section', { class: 'card habits-main' },
         h('div', { class: 'hgrid-scroll' }, els.grid),
         addForm,
-        els.error
-      ),
-      h('aside', { class: 'habits-side' },
-        h('section', { class: 'card' },
-          h('h2', { class: 'section-label' }, 'Complétion du mois'),
-          h('div', { class: 'ring-row' }, els.ring, els.ringText)
-        ),
-        h('section', { class: 'card habits-ranking-card' },
-          h('h2', { class: 'section-label' }, 'Classement'),
-          els.ranking,
-          h('div', { class: 'level-legend' },
-            h('span', null, h('i', { class: 'dot lvl-bg-success' }), '≥ 80 %'),
-            h('span', null, h('i', { class: 'dot lvl-bg-warning' }), '≥ 50 %'),
-            h('span', null, h('i', { class: 'dot lvl-bg-danger' }), '< 50 %')
+        els.error,
+        h('div', { class: 'habits-bottom' },
+          h('div', { class: 'habits-panel' },
+            h('h2', { class: 'section-label' }, 'Aperçu du mois'),
+            els.curve
+          ),
+          h('div', { class: 'habits-panel' },
+            h('h2', { class: 'section-label' }, 'Semaines'),
+            els.weeks
           )
         )
       ),
-      h('div', { class: 'habits-bottom' },
-        h('section', { class: 'card' },
-          h('div', { class: 'card-head' },
-            h('h2', { class: 'section-label' }, 'Aperçu mensuel'),
-            h('span', { class: 'card-hint' }, '% des habitudes cochées par jour')
-          ),
-          els.curve
+      h('aside', { class: 'habits-side' },
+        h('div', { class: 'habits-ring-block' },
+          els.ring,
+          h('h2', { class: 'section-label' }, 'Complétion du mois')
         ),
-        h('section', { class: 'card' },
-          h('h2', { class: 'section-label' }, 'Récap hebdomadaire'),
-          els.weeks
+        h('div', { class: 'habits-ranking-block' },
+          h('h2', { class: 'section-label' }, 'Classement'),
+          els.ranking,
+          h('div', { class: 'level-legend' },
+            h('span', null, h('i', { class: 'gem lvl-bg-success' }), '≥ 80 %'),
+            h('span', null, h('i', { class: 'gem lvl-bg-warning' }), '≥ 50 %'),
+            h('span', null, h('i', { class: 'gem lvl-bg-danger' }), '< 50 %')
+          )
         )
       )
     ));
@@ -135,26 +129,26 @@
     rows = {};
     B.ui.clear(els.grid);
 
-    // En-tête : colonnes fixes + numéros de jour
+    // En-tête : colonnes fixes + numéros de jour (dimanches et jour actuel marqués)
     var dayHeads = [];
     for (var day = 1; day <= n; day++) {
       var date = D.dayOfMonth(month, day);
       var wd = D.weekdayIndex(date);
       dayHeads.push(h('span', {
-        class: 'hday-head' + (date === today ? ' today' : '') + (wd >= 5 ? ' weekend' : ''),
+        class: 'hday-head' + (date === today ? ' today' : '') + (wd === 6 ? ' sunday' : ''),
         title: D.formatLong(date), role: 'columnheader'
       }, String(day)));
     }
     els.grid.appendChild(h('div', { class: 'hrow hrow-head', role: 'row' },
       h('div', { class: 'hfix' },
-        h('span', { role: 'columnheader' }, 'Habitude'),
-        h('span', { class: 'right', role: 'columnheader' }, 'Fait / cible'),
-        h('span', { class: 'right', role: 'columnheader' }, 'Reste'),
+        h('span', { role: 'columnheader' }, 'Rituel'),
+        h('span', { class: 'right', role: 'columnheader' }, 'Fait'),
         h('span', { class: 'right', role: 'columnheader' }, '%')
       ),
       dayHeads,
       h('span', { class: 'hend' })
     ));
+    els.grid.appendChild(B.ui.ornament('hgrid-ornament'));
 
     if (habits.length === 0) {
       els.grid.appendChild(h('p', { class: 'muted hgrid-empty' },
@@ -180,7 +174,7 @@
     // Cible du mois, modifiable dans la ligne
     r.target = h('input', {
       class: 'htarget num', type: 'text', inputmode: 'numeric', maxlength: '3',
-      'aria-label': 'Cible de ' + x.name + ' pour ' + D.monthLabel(month)
+      'aria-label': 'Cible de ' + x.name + ' pour ' + D.monthLabel(month), title: 'Cible du mois (modifiable)'
     });
     editableOnBlur(r.target, function (value) {
       var result = B.store.update(function (d) { return L.setTarget(d, x.id, month, value); });
@@ -193,9 +187,8 @@
     }, function () { return String(L.targetFor(data(), x, month)); });
 
     r.done = h('span', { class: 'num' });
-    r.rest = h('span', { class: 'right num muted' });
+    r.doneCell = h('span', { class: 'right hdone' }, r.done, h('span', { class: 'slash' }, '/'), r.target);
     r.pct = h('span', { class: 'num' });
-    r.bar = h('span');
 
     var cells = [];
     for (var day = 1; day <= n; day++) cells.push(dayCell(x, D.dayOfMonth(month, day), today));
@@ -203,9 +196,8 @@
     var row = h('div', { class: 'hrow', role: 'row' },
       h('div', { class: 'hfix', role: 'rowheader' },
         r.name,
-        h('span', { class: 'right hdone' }, r.done, h('span', { class: 'slash' }, '/'), r.target),
-        r.rest,
-        h('span', { class: 'right hpct' }, r.pct, h('span', { class: 'progress' }, r.bar))
+        r.doneCell,
+        h('span', { class: 'right hpct' }, r.pct)
       ),
       cells,
       h('span', { class: 'hend' },
@@ -249,30 +241,26 @@
     return h('span', { class: 'hday', role: 'cell' }, btn);
   }
 
+  /* Losange plein = fait ; petit point = jour passé manqué ; contour = aujourd'hui. */
   function setCellState(btn, x, date, today) {
     var checked = !!L.checksOf(data(), x.id)[date];
     var future = date > today;
-    btn.className = 'hcell' + (checked ? ' done' : '') + (date === today ? ' today' : '') + (future ? ' future' : '');
+    btn.className = 'hcell' + (checked ? ' done' : future ? ' future' : date === today ? ' today' : ' missed');
     btn.disabled = future;
     btn.setAttribute('aria-checked', checked ? 'true' : 'false');
     btn.setAttribute('aria-label', x.name + ' — ' + D.formatLong(date));
     btn.title = D.formatLong(date) + (future ? ' (à venir)' : checked ? ' — fait' : '');
-    if (checked) { B.ui.clear(btn); btn.appendChild(icon('check', null, 'ph-bold')); }
-    else B.ui.clear(btn);
   }
 
   function updateRow(x) {
     var r = rows[x.id];
     if (!r) return;
     var s = L.monthStats(data(), x, month);
-    var lvl = L.level(s.pct);
     r.done.textContent = s.done;
     if (document.activeElement !== r.target) r.target.value = s.target;
-    r.rest.textContent = s.rest;
-    r.pct.textContent = s.pct + ' %';
-    r.pct.className = 'num lvl-' + lvl;
-    r.bar.className = 'lvl-bg-' + lvl;
-    r.bar.style.width = Math.min(s.pct, 100) + '%';
+    r.doneCell.title = B.ui.plural(s.rest, 'restant', 'restants') + ' pour atteindre la cible';
+    r.pct.textContent = s.pct;
+    r.pct.className = 'num lvl-' + L.level(s.pct);
   }
 
   function onAdd(e) {
@@ -299,21 +287,24 @@
     });
   }
 
-  /* ---------- Panneaux : anneau, classement, aperçu, semaines ---------- */
+  /* ---------- Panneaux : cadran, classement, aperçu, semaines ---------- */
 
   function drawPanels() {
     var d = data();
     var c = L.monthCompletion(d, month);
 
-    // Anneau de complétion
-    els.ring.style.setProperty('--p', Math.min(c.pct, 100));
+    // Cadran de complétion
     B.ui.clear(els.ring);
-    els.ring.appendChild(h('span', { class: 'ring-value num' }, c.pct + ' %'));
-    B.ui.clear(els.ringText);
-    B.ui.append(els.ringText, [
-      h('span', null, h('strong', { class: 'num' }, String(c.done)), ' ', c.done >= 2 ? 'coches' : 'coche'),
-      h('span', null, 'sur ' + c.target + ' ' + (c.target >= 2 ? 'visées' : 'visée')),
-      h('span', null, c.rest + ' ' + (c.rest >= 2 ? 'restantes' : 'restante'))
+    els.ring.style.setProperty('--p', Math.min(c.pct, 100));
+    els.ring.setAttribute('aria-label', 'Complétion du mois : ' + c.pct + ' %, ' + c.done + ' sur ' + c.target);
+    B.ui.append(els.ring, [
+      h('span', { class: 'ring-ticks' }),
+      h('span', { class: 'ring-square' }),
+      h('span', { class: 'ring-square rot' }),
+      h('span', { class: 'ring-arc' }),
+      h('span', { class: 'ring-center' },
+        h('span', { class: 'ring-value num' }, String(c.pct), h('span', { class: 'ring-pct' }, '%')),
+        h('span', { class: 'ring-sub' }, c.done + ' sur ' + c.target))
     ]);
 
     // Classement
@@ -325,81 +316,52 @@
       els.ranking.appendChild(h('div', { class: 'rank-item' },
         h('div', { class: 'rank-line' },
           h('span', { class: 'rank-name' }, item.habit.name),
-          h('span', { class: 'num lvl-' + lvl }, item.stats.pct + ' %')
+          h('span', { class: 'num rank-pct lvl-' + lvl }, String(item.stats.pct))
         ),
-        h('div', { class: 'progress' }, h('span', { class: 'lvl-bg-' + lvl, style: 'width:' + Math.min(item.stats.pct, 100) + '%' }))
+        h('div', { class: 'bar' }, h('span', { class: 'bar-fill lvl-' + lvl, style: 'width:' + Math.min(item.stats.pct, 100) + '%' }))
       ));
     });
 
-    drawCurve(d);
+    drawPins(d);
 
-    // Récap hebdomadaire
+    // Semaines : un losange par semaine, de la couleur de son niveau
     B.ui.clear(els.weeks);
     L.weeklyRecap(d, month).forEach(function (w) {
-      els.weeks.appendChild(h('div', { class: 'week-row' },
-        h('span', { class: 'num muted' }, w.label),
-        h('div', { class: 'progress thick' }, h('span', { style: 'width:' + Math.min(w.pct, 100) + '%' })),
-        h('span', { class: 'num right' }, w.pct + ' %')
+      els.weeks.appendChild(h('div', { class: 'week', title: 'Jours ' + w.label + ' : ' + w.pct + ' %' },
+        h('span', { class: 'week-gem lvl-' + L.level(w.pct) }, h('span', { class: 'num' }, String(w.pct))),
+        h('span', { class: 'week-range num' }, w.label)
       ));
     });
   }
 
-  function svg(tag, attrs) {
-    var el = document.createElementNS(SVG_NS, tag);
-    Object.keys(attrs || {}).forEach(function (k) { el.setAttribute(k, attrs[k]); });
-    return el;
-  }
-
-  /* Aperçu mensuel : graphique en aire (SVG), arrêté à aujourd'hui pour le mois en cours. */
-  function drawCurve(d) {
+  /*
+   * Aperçu du mois : une « épingle » par jour, de hauteur = % des habitudes
+   * cochées ce jour-là. S'arrête à aujourd'hui pour le mois en cours.
+   */
+  function drawPins(d) {
     var points = L.dailyCurve(d, month, D.today());
     var n = D.daysInMonth(month);
-    var W = 300, H = 100;
-    var x = function (day) { return (day - 1) / (n - 1) * W; };
-    var y = function (pct) { return 4 + (100 - pct) * 0.92; };
-
+    var today = D.today();
     B.ui.clear(els.curve);
     if (L.habitsForMonth(d, month).length === 0) {
-      els.curve.appendChild(h('p', { class: 'muted small' }, 'La courbe apparaîtra avec tes premières habitudes.'));
+      els.curve.appendChild(h('p', { class: 'muted small' }, 'L\'aperçu apparaîtra avec tes premières habitudes.'));
       return;
     }
-
-    var chart = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'none', class: 'curve-svg', role: 'img',
+    var chart = h('div', { class: 'pins-chart', role: 'img',
       'aria-label': 'Pourcentage des habitudes cochées chaque jour de ' + D.monthLabel(month) });
-    var gradId = 'curve-grad';
-    var defs = svg('defs');
-    var grad = svg('linearGradient', { id: gradId, x1: '0', y1: '0', x2: '0', y2: '1' });
-    grad.appendChild(svg('stop', { offset: '0', class: 'curve-stop-top' }));
-    grad.appendChild(svg('stop', { offset: '1', class: 'curve-stop-bottom' }));
-    defs.appendChild(grad);
-    chart.appendChild(defs);
-
-    [0, 50, 100].forEach(function (p) {
-      chart.appendChild(svg('line', { x1: 0, x2: W, y1: y(p), y2: y(p), class: 'curve-grid', 'vector-effect': 'non-scaling-stroke' }));
-    });
-
-    if (points.length > 0) {
-      var line = points.map(function (p, i) { return (i ? 'L' : 'M') + x(p.day).toFixed(2) + ',' + y(p.pct).toFixed(2); }).join(' ');
-      var last = points[points.length - 1];
-      var area = line + ' L' + x(last.day).toFixed(2) + ',' + H + ' L0,' + H + ' Z';
-      chart.appendChild(svg('path', { d: area, fill: 'url(#' + gradId + ')' }));
-      chart.appendChild(svg('path', { d: line, class: 'curve-line', 'vector-effect': 'non-scaling-stroke' }));
-
-      // Zones de survol : une par jour, avec info-bulle
-      var step = W / (n - 1);
-      points.forEach(function (p) {
-        var zone = svg('rect', { x: Math.max(0, x(p.day) - step / 2), y: 0, width: step, height: H, class: 'curve-hit' });
-        var title = svg('title');
-        title.textContent = D.parse(p.date).getDate() + ' ' + D.MOIS[+month.slice(5, 7) - 1] + ' — ' + p.pct + ' %';
-        zone.appendChild(title);
-        chart.appendChild(zone);
-      });
+    for (var day = 1; day <= n; day++) {
+      var p = points[day - 1];
+      if (!p) { chart.appendChild(h('span', { class: 'pin empty' })); continue; }
+      var tone = p.date === today ? 'now' : p.pct >= 80 ? 'high' : 'low';
+      chart.appendChild(h('span', {
+        class: 'pin ' + tone, style: '--h:' + Math.max(p.pct, 4) + '%',
+        title: day + ' ' + D.MOIS[+month.slice(5, 7) - 1] + ' — ' + p.pct + ' %'
+      }, h('span', { class: 'pin-head' }), h('span', { class: 'pin-stem' })));
     }
-
-    var monthShort = MOIS_COURTS[+month.slice(5, 7) - 1];
     els.curve.appendChild(chart);
-    els.curve.appendChild(h('div', { class: 'curve-axis' },
-      h('span', null, '1 ' + monthShort), h('span', null, '15'), h('span', null, String(n))));
+    els.curve.appendChild(h('div', { class: 'pins-axis' },
+      h('span', null, '1 ' + D.MOIS_COURTS[+month.slice(5, 7) - 1]), h('span', null, '15'),
+      h('span', { class: 'pins-last' }, String(n))));
   }
 
   /* ======================================================================

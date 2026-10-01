@@ -278,6 +278,8 @@ D. Points à préciser
 RÉFÉRENCE DESIGN
 ================================================================================
 
+[Remplacé le 01/10/2026 par la refonte « Grimoire & Crypte » — voir le
+journal de bord. Ce qui suit décrit l'ancien style Nocturne.]
 Maquette : projet claude.ai/design « Bourgeon Directions »
   https://claude.ai/design/p/0f5679a3-d4b8-4258-addb-05d380e7203c
   fichier « Bourgeon Directions.dc.html » (lecture via /design-login).
@@ -477,3 +479,24 @@ JOURNAL DE BORD
              vers l'appli (emailRedirectTo).
              Mettre à jour le site : modifier les fichiers, augmenter VERSION
              dans sw.js, puis git commit + git push (en ligne en 1-2 min).
+
+01/10/2026 — Refonte graphique « Grimoire (clair) & Crypte (sombre) »
+             d'après la maquette claude.ai/design « Bourgeon Onglets »
+             (même projet). Polices Cinzel / Cinzel Decorative / Spectral
+             copiées dans vendor/fonts (Inter retirée) ; emblème soleil
+             doré (barre latérale, favicon, icônes de l'appli) ; sous-titres
+             de page (« Chronique des jours »…) ; cartes biseautées, boutons
+             en losange étiré, cases en losange, filets à losange central.
+             Mises en page reprises de la maquette : Journal (éditeur +
+             « Jours passés »), Habitudes (épingles, semaines en losange,
+             cadran orné), Focus (cadran orné, frise des phases, résumé
+             verrouillé, « Aujourd'hui »), Objectifs (compteurs, cartes sur
+             2 colonnes, statut en pastille), Eisenhower (« Non triées » à
+             gauche, axes urgent / important, quadrants Faire / Planifier /
+             Déléguer / Abandonner), Révisions (boutons Rythmes / Nouvelle
+             matière ; réglages déplacés dans la fenêtre Rythmes). Sport et
+             Révisions sombre absents de la maquette (fichier tronqué) :
+             déclinés dans le même langage. Bug corrigé pendant les tests :
+             fenêtre Rythmes, un nouveau type prenait les paliers par défaut.
+             Vérifié : 63 tests + simulation synchro + 30 contrôles de clics
+             sur les 7 modules + captures clair / sombre / mobile.

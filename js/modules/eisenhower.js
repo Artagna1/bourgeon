@@ -23,7 +23,7 @@
     editingId = null;
     els = {
       root: h('div', { class: 'eis' }),
-      toggle: h('button', { type: 'button', class: 'btn', onclick: function () { hideDone = !hideDone; draw(); } })
+      toggle: h('button', { type: 'button', class: 'switch-line', onclick: function () { hideDone = !hideDone; draw(); } })
     };
     ctx.actions.appendChild(els.toggle);
     container.appendChild(els.root);
@@ -39,11 +39,17 @@
   function draw(focusSelector) {
     if (!els) return;
     B.ui.clear(els.toggle);
-    B.ui.append(els.toggle, hideDone ? [icon('eye'), 'Afficher terminées'] : [icon('eye-slash'), 'Masquer terminées']);
+    els.toggle.setAttribute('aria-pressed', hideDone ? 'true' : 'false');
+    B.ui.append(els.toggle, [h('span', { class: 'switch', 'aria-hidden': 'true' }, h('span', { class: 'switch-knob' })), 'Masquer les terminées']);
 
     B.ui.clear(els.root);
-    els.root.appendChild(h('div', { class: 'eis-matrix' }, [1, 2, 3, 4].map(zoneBlock)));
     els.root.appendChild(zoneBlock(0));
+    els.root.appendChild(h('div', { class: 'eis-board' },
+      h('span', { class: 'eis-axis top', 'aria-hidden': 'true' }, 'Urgent'),
+      h('span', { class: 'eis-axis top', 'aria-hidden': 'true' }, 'Pas urgent'),
+      h('span', { class: 'eis-axis side first', 'aria-hidden': 'true' }, 'Important'),
+      h('span', { class: 'eis-axis side second', 'aria-hidden': 'true' }, 'Pas important'),
+      h('div', { class: 'eis-matrix' }, [1, 2, 3, 4].map(zoneBlock))));
 
     if (focusSelector) {
       var target = els.root.querySelector(focusSelector);
@@ -59,12 +65,12 @@
       list.length ? list.map(function (t) { return taskCard(t, zoneId, visibleIds); })
         : h('p', { class: 'eis-empty' }, 'Aucune tâche ici.'));
 
-    var section = h('section', { class: 'eis-zone ' + zone.tone, 'data-zone': zoneId, 'aria-label': zone.title },
+    var section = h('section', { class: 'eis-zone ' + zone.tone, 'data-zone': zoneId, 'aria-label': zone.name + ' — ' + zone.title, title: zoneId ? zone.title : null },
       h('header', { class: 'eis-head' },
-        zoneId === 0 ? icon('tray', 'eis-num') : h('span', { class: 'eis-num num' }, String(zoneId)),
+        zoneId === 0 ? null : h('span', { class: 'eis-num num' }, h('span', null, String(zoneId))),
         h('div', { class: 'eis-titles' },
-          h('h2', { class: 'eis-title' }, zone.title),
-          h('span', { class: 'eis-action' }, zoneId === 0 ? zone.action : '→ ' + zone.action)),
+          h('h2', { class: 'eis-title' }, zone.name),
+          zoneId === 0 ? null : h('span', { class: 'eis-action' }, zone.hint)),
         h('span', { class: 'eis-count num', title: 'Tâches affichées' }, String(list.length))
       ),
       listEl,
@@ -88,11 +94,12 @@
           B.store.update(function (d) { EL.toggleDone(d, t.id); });
           draw('[data-id="' + t.id + '"] .eis-check');
         }
-      }, t.done ? icon('check', null, 'ph-bold') : null),
+      }),
       h('div', { class: 'eis-body' },
         h('p', { class: 'eis-text' }, t.text),
-        t.deadline ? h('p', { class: 'eis-deadline' }, icon('calendar-blank'), t.deadline) : null
+        t.deadline ? h('p', { class: 'eis-deadline' }, icon('hourglass'), t.deadline) : null
       ),
+      h('span', { class: 'eis-grip', 'aria-hidden': 'true' }, icon('dots-six-vertical', null, 'ph-bold')),
       h('div', { class: 'eis-tools' },
         h('button', {
           type: 'button', class: 'icon-action', title: 'Déplacer vers…', 'aria-label': 'Déplacer « ' + t.text + ' » vers…',
@@ -170,7 +177,7 @@
     var menu = h('div', { class: 'eis-menu', role: 'menu', 'aria-label': 'Déplacer vers' },
       h('span', { class: 'eis-menu-label' }, 'Déplacer vers'),
       EL.ZONES.map(function (z) {
-        return item((z.id === 0 ? '' : z.id + '. ') + (z.id === 0 ? z.title : z.action), z.id !== zoneId,
+        return item((z.id === 0 ? '' : z.id + '. ') + z.name, z.id !== zoneId,
           function () { move(z.id, null); }, z.tone);
       }),
       h('span', { class: 'eis-menu-sep' }),
@@ -180,7 +187,12 @@
     menu.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { closeMenus(); button.focus(); }
     });
-    button.parentNode.appendChild(menu);
+    // Le menu est posé sur la page (et non dans la carte) pour ne pas être rogné par les coins biseautés.
+    var r = button.getBoundingClientRect();
+    menu.style.top = Math.min(r.bottom + 4, window.innerHeight - 300) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.right - 220, window.innerWidth - 228)) + 'px';
+    document.body.appendChild(menu);
+    window.addEventListener('scroll', closeMenus, { once: true });
     var first = menu.querySelector('.eis-menu-item:not([disabled])');
     if (first) first.focus();
     setTimeout(function () { document.addEventListener('click', outsideClick); }, 0);
@@ -192,7 +204,7 @@
 
   function closeMenus() {
     document.removeEventListener('click', outsideClick);
-    if (els) Array.prototype.forEach.call(els.root.querySelectorAll('.eis-menu'), function (m) { m.remove(); });
+    Array.prototype.forEach.call(document.querySelectorAll('.eis-menu'), function (m) { m.remove(); });
   }
 
   /* ---------- Glisser-déposer ---------- */
@@ -251,8 +263,8 @@
         draw('.eis-add input');
       }
     },
-      h('div', { class: 'eis-add-row' }, text, deadline,
-        h('button', { type: 'submit', class: 'btn btn-primary btn-icon', title: 'Ajouter', 'aria-label': 'Ajouter la tâche' }, icon('plus', null, 'ph-bold'))),
+      h('div', { class: 'eis-add-row' }, text, deadline),
+      h('button', { type: 'submit', class: 'btn btn-primary eis-add-btn' }, icon('plus', null, 'ph-bold'), 'Ajouter'),
       error
     );
   }

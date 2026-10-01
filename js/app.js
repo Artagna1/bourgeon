@@ -24,21 +24,29 @@
 
   /*
    * Les 7 sections, dans l'ordre de la barre latérale.
-   * icon = nom d'icône Phosphor (https://phosphoricons.com), step = étape du plan.
+   * icon = nom d'icône Phosphor (https://phosphoricons.com), kicker = sous-titre
+   * au-dessus du titre de la page, step = étape du plan.
    */
   var SECTIONS = [
-    { id: 'journal', label: 'Journal', icon: 'notebook', step: 2 },
-    { id: 'habits', label: 'Habitudes', icon: 'check-square', step: 4,
+    { id: 'journal', label: 'Journal', icon: 'scroll', kicker: 'Chronique des jours', step: 2 },
+    { id: 'habits', label: 'Habitudes', icon: 'plant', kicker: 'Livre des rituels', step: 4,
       tabs: [{ id: 'month', label: 'Mois' }, { id: 'global', label: 'Global' }] },
-    { id: 'focus', label: 'Focus', icon: 'timer', step: 6,
+    { id: 'focus', label: 'Focus', icon: 'hourglass-high', kicker: 'Veille de concentration', step: 6,
       tabs: [{ id: 'session', label: 'Session' }, { id: 'history', label: 'Historique' }] },
-    { id: 'goals', label: 'Objectifs', icon: 'target', step: 3 },
-    { id: 'eisenhower', label: 'Eisenhower', icon: 'compass', step: 7 },
-    { id: 'revisions', label: 'Révisions', icon: 'brain', step: 5,
+    { id: 'goals', label: 'Objectifs', icon: 'sword', kicker: 'Quêtes en cours', step: 3 },
+    { id: 'eisenhower', label: 'Eisenhower', icon: 'scales', kicker: 'Table du conseil', step: 7 },
+    { id: 'revisions', label: 'Révisions', icon: 'book-open-text', kicker: 'Mémoire des arcanes', step: 5,
       tabs: [{ id: 'tree', label: 'Arborescence' }, { id: 'today', label: 'Aujourd\'hui' }] },
-    { id: 'sport', label: 'Sport', icon: 'sneaker-move', step: 8,
+    { id: 'sport', label: 'Sport', icon: 'heartbeat', kicker: 'Carnet du coureur', step: 8,
       tabs: [{ id: 'planning', label: 'Planning' }, { id: 'vma', label: 'Course (VMA)' }] }
   ];
+
+  /* Emblème : soleil à douze rayons et spirale (dessin statique). */
+  var EMBLEM = '<svg class="brand-emblem" viewBox="-50 -50 100 100" aria-hidden="true"><g class="rays">' +
+    [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(function (a) {
+      return '<polygon points="-4,-27 0,-49 4,-27" transform="rotate(' + a + ')"/>';
+    }).join('') + '</g><circle r="23"/>' +
+    '<path d="M0 0 m2 0 a2 2 0 1 0 -4 0 a6 6 0 1 0 10 0 a10 10 0 1 0 -18 0 a14 14 0 1 0 25 0"/></svg>';
 
   var THEME_KEY = 'bourgeon.theme';
 
@@ -64,7 +72,7 @@
     B.ui.clear(els.themeBtn);
     B.ui.append(els.themeBtn, theme === 'dark'
       ? [icon('sun'), h('span', { class: 'theme-label' }, 'Mode clair')]
-      : [icon('moon'), h('span', { class: 'theme-label' }, 'Mode sombre')]);
+      : [icon('moon-stars'), h('span', { class: 'theme-label' }, 'Mode sombre')]);
     els.themeBtn.setAttribute('aria-label', theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre');
   }
 
@@ -86,6 +94,7 @@
       onclick: function () { applyTheme(currentTheme() === 'dark' ? 'light' : 'dark'); }
     });
 
+    els.kicker = h('span', { class: 'page-kicker' });
     els.title = h('h1', { class: 'page-title' });
     els.tabs = h('div', { class: 'page-tabs' });
     els.actions = h('div', { class: 'page-actions' });
@@ -93,7 +102,7 @@
 
     root.appendChild(h('div', { class: 'app' },
       h('aside', { class: 'sidebar' },
-        h('div', { class: 'brand' }, h('span', { class: 'brand-dot', 'aria-hidden': 'true' }), 'Bourgeon'),
+        brandBlock(),
         els.nav,
         h('button', { type: 'button', class: 'theme-toggle data-btn', onclick: function () { B.backup.open(); } },
           icon('database'), h('span', { class: 'theme-label' }, 'Données'),
@@ -101,12 +110,18 @@
         els.themeBtn
       ),
       h('main', { class: 'main' },
-        h('header', { class: 'page-header' }, els.title, els.tabs, els.actions),
+        h('header', { class: 'page-header' }, h('div', { class: 'page-titles' }, els.kicker, els.title), els.tabs, els.actions),
         els.content
       )
     ));
 
     applyTheme(currentTheme());
+  }
+
+  function brandBlock() {
+    var mark = h('span', { class: 'brand-mark' });
+    mark.innerHTML = EMBLEM;   // dessin fixe, sans donnée de l'utilisateur
+    return h('div', { class: 'brand' }, mark, h('span', { class: 'brand-name' }, 'Bourgeon'), B.ui.ornament('brand-ornament'));
   }
 
   /* --- Navigation --- */
@@ -132,8 +147,10 @@
       if (active) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
     });
 
-    // En-tête : titre + sous-onglets
+    // En-tête : sous-titre, titre et sous-onglets
+    els.kicker.textContent = section.kicker || '';
     els.title.textContent = section.label;
+    els.content.setAttribute('data-section', id);
     B.ui.clear(els.tabs);
     if (section.tabs) {
       els.tabs.appendChild(B.ui.segmented(section.tabs, state.tabs[id], function (t) {

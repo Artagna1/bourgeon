@@ -8,12 +8,15 @@
  *
  * Après une mise à jour importante, augmenter VERSION pour vider l'ancien cache.
  */
-var VERSION = 'bourgeon-v4';
+var VERSION = 'bourgeon-v5';
 
 var FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png',
-  'vendor/inter/inter-latin-wght-normal.woff2', 'vendor/inter/inter-latin-ext-wght-normal.woff2',
+  'vendor/fonts/fonts.css', 'vendor/fonts/Cinzel-500-normal.woff2', 'vendor/fonts/Cinzel-600-normal.woff2',
+  'vendor/fonts/Cinzel-700-normal.woff2', 'vendor/fonts/CinzelDecorative-700-normal.woff2',
+  'vendor/fonts/Spectral-400-normal.woff2', 'vendor/fonts/Spectral-400-italic.woff2', 'vendor/fonts/Spectral-500-normal.woff2',
+  'vendor/fonts/Spectral-500-italic.woff2', 'vendor/fonts/Spectral-600-normal.woff2',
   'vendor/phosphor/regular/style.css', 'vendor/phosphor/regular/Phosphor.woff2',
   'vendor/phosphor/fill/style.css', 'vendor/phosphor/fill/Phosphor-Fill.woff2',
   'vendor/phosphor/bold/style.css', 'vendor/phosphor/bold/Phosphor-Bold.woff2',

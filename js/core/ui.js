@@ -45,6 +45,12 @@
     return h('i', { class: (style || 'ph') + ' ph-' + name + (extraClass ? ' ' + extraClass : ''), 'aria-hidden': 'true' });
   }
 
+  /* Séparateur décoratif : deux filets et un losange au centre. */
+  function ornament(extraClass) {
+    return h('div', { class: 'ornament' + (extraClass ? ' ' + extraClass : ''), 'aria-hidden': 'true' },
+      h('span', { class: 'ornament-line' }), h('span', { class: 'ornament-gem' }), h('span', { class: 'ornament-line' }));
+  }
+
   function clear(el) {
     while (el.firstChild) el.removeChild(el.firstChild);
     return el;
@@ -162,7 +168,7 @@
   }
 
   B.ui = {
-    h: h, icon: icon, append: append, clear: clear, segmented: segmented,
+    h: h, icon: icon, ornament: ornament, append: append, clear: clear, segmented: segmented,
     formError: formError, setError: setError, flashSaved: flashSaved,
     openDialog: openDialog, confirm: confirm, showError: showError, plural: plural
   };

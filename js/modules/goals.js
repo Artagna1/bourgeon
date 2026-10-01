@@ -83,11 +83,12 @@
 
   var els = null;
 
-  function render(container) {
+  function render(container, tabId, ctx) {
     els = {
+      stats: h('div', { class: 'goals-stats', 'aria-live': 'polite' }),
       name: h('input', {
         class: 'input goals-name', type: 'text', maxlength: '100',
-        placeholder: 'Nom de l\'objectif', 'aria-label': 'Nom de l\'objectif'
+        placeholder: 'Nom de la quête…', 'aria-label': 'Nom de l\'objectif'
       }),
       date: h('input', {
         class: 'input goals-date', type: 'date', value: D.today(),
@@ -96,18 +97,18 @@
       error: B.ui.formError(),
       list: h('div', { class: 'goals-list' })
     };
+    ctx.actions.appendChild(els.stats);
 
-    var form = h('form', { class: 'card goals-form', novalidate: true, onsubmit: onAdd },
-      h('h2', { class: 'section-label' }, 'Nouvel objectif'),
+    var form = h('form', { class: 'goals-form', novalidate: true, onsubmit: onAdd },
       h('div', { class: 'goals-form-row' },
         els.name,
         els.date,
-        h('button', { type: 'submit', class: 'btn btn-primary' }, icon('plus'), 'Ajouter')
+        h('button', { type: 'submit', class: 'btn btn-primary' }, icon('plus', null, 'ph-bold'), 'Ajouter')
       ),
       els.error
     );
 
-    container.appendChild(h('div', { class: 'goals' }, form, els.list));
+    container.appendChild(h('div', { class: 'goals' }, form, B.ui.ornament(), els.list));
     drawList();
   }
 
@@ -126,9 +127,22 @@
     els.name.focus();
   }
 
+  /* « 4 en cours · 1 atteint · 1 abandonné » dans l'en-tête */
+  function drawStats(goals) {
+    var count = { active: 0, done: 0, abandoned: 0 };
+    goals.forEach(function (g) { count[g.status] = (count[g.status] || 0) + 1; });
+    B.ui.clear(els.stats);
+    B.ui.append(els.stats, [
+      h('span', { class: 'stat-active' }, h('strong', { class: 'num' }, String(count.active)), ' en cours'),
+      h('span', { class: 'stat-done' }, h('strong', { class: 'num' }, String(count.done)), count.done >= 2 ? ' atteints' : ' atteint'),
+      h('span', { class: 'stat-abandoned' }, h('strong', { class: 'num' }, String(count.abandoned)), count.abandoned >= 2 ? ' abandonnés' : ' abandonné')
+    ]);
+  }
+
   function drawList(focusSelector) {
     var goals = sortedGoals(B.store.get());
     var today = D.today();
+    drawStats(goals);
     B.ui.clear(els.list);
 
     if (goals.length === 0) {
@@ -148,7 +162,7 @@
     var state = info.overdue ? 'overdue' : g.status;
 
     var note = h('input', {
-      class: 'input goals-note', type: 'text', value: g.note,
+      class: 'goal-note', type: 'text', value: g.note,
       placeholder: 'Ajouter une note…', 'aria-label': 'Note pour ' + g.name
     });
     // La note est enregistrée en quittant le champ (Entrée ou clic ailleurs).
@@ -158,38 +172,34 @@
       note.value = findGoal(B.store.get(), g.id).note;
     });
 
-    var statusPicker = h('div', { class: 'goals-status', role: 'radiogroup', 'aria-label': 'Statut de ' + g.name },
-      STATUSES.map(function (s) {
-        var active = s.id === g.status;
-        return h('button', {
-          type: 'button', role: 'radio', class: 'status-' + s.id + (active ? ' active' : ''),
-          'aria-checked': active ? 'true' : 'false', 'data-status': s.id,
-          onclick: function () {
-            if (active) return;
-            B.store.update(function (data) { setStatus(data, g.id, s.id); });
-            drawList('[data-goal="' + g.id + '"] [data-status="' + s.id + '"]');
-          }
-        }, s.label);
-      })
-    );
+    // Statut : une pastille qui s'ouvre comme une liste (En cours / Atteint / Abandonné)
+    var status = h('select', {
+      class: 'goal-status status-' + g.status, 'aria-label': 'Statut de ' + g.name, 'data-status-select': g.id,
+      onchange: function () {
+        B.store.update(function (data) { setStatus(data, g.id, status.value); });
+        drawList('[data-status-select="' + g.id + '"]');
+      }
+    }, STATUSES.map(function (s) { return h('option', { value: s.id, selected: s.id === g.status }, s.label); }));
 
     return h('article', { class: 'card goal goal-' + state, 'data-goal': g.id },
       h('div', { class: 'goal-head' },
+        h('span', { class: 'goal-gem', 'aria-hidden': 'true' }),
         h('h3', { class: 'goal-name' }, g.name),
+        status,
         h('button', {
-          type: 'button', class: 'icon-action danger', title: 'Supprimer', 'aria-label': 'Supprimer « ' + g.name + ' »',
+          type: 'button', class: 'icon-action danger goal-delete', title: 'Supprimer', 'aria-label': 'Supprimer « ' + g.name + ' »',
           onclick: function () {
             B.store.update(function (data) { removeGoal(data, g.id); });
             drawList();
           }
         }, icon('x'))
       ),
-      h('p', { class: 'goal-deadline num' },
-        info.date,
-        info.countdown ? h('span', { class: 'goal-countdown' },
-          ' · ', info.overdue ? icon('warning-circle', 'goal-warning', 'ph-fill') : null, info.countdown) : null
+      h('p', { class: 'goal-deadline' },
+        info.overdue ? icon('warning-diamond', 'goal-warning', 'ph-fill') : icon('calendar-blank'),
+        h('span', { class: 'num' }, D.formatShort(g.deadline)),
+        info.countdown ? h('span', { class: 'goal-countdown' }, ' · ' + info.countdown) : null
       ),
-      h('div', { class: 'goal-foot' }, statusPicker, note)
+      h('div', { class: 'goal-foot' }, note)
     );
   }
 

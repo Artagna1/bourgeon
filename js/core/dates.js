@@ -13,6 +13,7 @@
   var JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
   var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
     'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  var MOIS_COURTS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
   function pad(n) { return n < 10 ? '0' + n : String(n); }
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -131,7 +132,7 @@
   }
 
   B.dates = {
-    JOURS: JOURS, MOIS: MOIS, pad: pad,
+    JOURS: JOURS, MOIS: MOIS, MOIS_COURTS: MOIS_COURTS, pad: pad,
     toStr: toStr, parse: parse, isValidStr: isValidStr, today: today,
     addDays: addDays, diffDays: diffDays, weekdayIndex: weekdayIndex, startOfWeek: startOfWeek,
     monthKey: monthKey, currentMonth: currentMonth, daysInMonth: daysInMonth,

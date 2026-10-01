@@ -147,34 +147,59 @@
   var form = null;       // réglages en cours de saisie
   var period = 'week';
 
-  function render(container, tabId) {
+  function render(container, tabId, ctx) {
     els = { root: h('div', { class: 'focus' }) };
     container.appendChild(els.root);
+    ctx.actions.appendChild(alertsToggle());
     if (tabId === 'history') renderHistory();
     else renderSession();
+  }
+
+  /* Interrupteur « Notification à la fin de la phase » (son + notification). */
+  function alertsToggle() {
+    var btn = h('button', { type: 'button', class: 'toggle-line' });
+    function draw() {
+      var on = data().focus.settings.alerts;
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.title = on ? 'Son et notification activés — cliquer pour couper' : 'Son et notification coupés — cliquer pour activer';
+      B.ui.clear(btn);
+      B.ui.append(btn, [icon(on ? 'bell' : 'bell-slash', null, on ? 'ph' : 'ph'), 'Notification à la fin de la phase']);
+    }
+    btn.addEventListener('click', function () {
+      B.store.update(function (d) { d.focus.settings.alerts = !d.focus.settings.alerts; });
+      if (data().focus.settings.alerts) { unlockAudio(); askNotificationPermission(); }
+      draw();
+      if (view.redraw) view.redraw();
+    });
+    draw();
+    return btn;
   }
 
   /* ---------- Onglet SESSION ---------- */
 
   function renderSession() {
     if (!form) form = Object.assign({}, DEFAULT_CONFIG, data().focus.lastConfig || {});
-    els.config = h('section', { class: 'card focus-config' });
     els.dial = h('section', { class: 'card focus-dial' });
-    els.root.appendChild(h('div', { class: 'focus-session' }, els.config, els.dial));
-    view.redraw = function () { if (els && els.config) { drawConfig(); drawDial(); } };
+    els.config = h('section', { class: 'card focus-config' });
+    els.today = h('section', { class: 'focus-today' });
+    els.root.appendChild(h('div', { class: 'focus-session' },
+      els.dial,
+      h('div', { class: 'focus-side' }, els.config, els.today)));
+    view.redraw = function () { if (els && els.config) { drawConfig(); drawDial(); drawToday(); } };
     view.redraw();
   }
 
   function drawConfig() {
     var d = data();
     var running = !!d.focus.active;
-    var subjects = d.revisions.subjects;
-    if (running) form = configOfSession(d.focus.active);
-    if (form.subjectId && !subjects.some(function (s) { return s.id === form.subjectId; })) form.subjectId = '';
     B.ui.clear(els.config);
+    if (running) { drawSummary(d); return; }
+
+    var subjects = d.revisions.subjects;
+    if (form.subjectId && !subjects.some(function (s) { return s.id === form.subjectId; })) form.subjectId = '';
 
     function field(label, control) {
-      return h('div', { class: 'focus-field' }, h('span', { class: 'section-label' }, label), control);
+      return h('div', { class: 'focus-field' }, h('span', { class: 'field-label' }, label), control);
     }
     function redrawConfig(key, value) { form[key] = value; drawConfig(); }
 
@@ -231,30 +256,65 @@
         h('p', { class: 'muted small' }, 'Tourne à l\'infini jusqu\'à l\'arrêt manuel.'));
     }
 
-    var alerts = h('input', {
-      type: 'checkbox', checked: d.focus.settings.alerts,
-      onchange: function () { B.store.update(function (dd) { dd.focus.settings.alerts = alerts.checked; }); }
-    });
-
     els.configError = B.ui.formError();
 
-    var fieldset = h('fieldset', { class: 'focus-fieldset', disabled: running },
+    els.config.appendChild(h('h2', { class: 'section-label' }, 'Configuration'));
+    els.config.appendChild(h('div', { class: 'focus-fieldset' },
       field('Cible', target),
       field('Matière', subjectSelect),
       subjects.length === 0 ? h('p', { class: 'muted small focus-hint' }, 'Les matières se créent dans Révisions ▸ Arborescence.') : null,
       chapterField,
       field('Mode', mode),
       modeOptions,
-      h('label', { class: 'focus-alerts' }, alerts, icon('bell-simple-ringing'), 'Son (et notification si la page est en arrière-plan) en fin de phase'),
       els.configError,
       h('button', { type: 'button', class: 'btn btn-primary focus-start', onclick: onStart }, icon('play', null, 'ph-fill'), 'Démarrer la session')
-    );
-
-    els.config.appendChild(h('h2', { class: 'section-label focus-card-title' }, running ? 'Configuration · verrouillée pendant la session' : 'Configuration'));
-    els.config.appendChild(fieldset);
+    ));
   }
 
-  /* Réglages d'une session en cours, pour les afficher (verrouillés) dans le formulaire. */
+  /* Pendant une session : résumé verrouillé de la configuration. */
+  function drawSummary(d) {
+    var a = d.focus.active;
+    var modeText = FL.MODES[a.mode];
+    if (a.mode === 'pomodoro') modeText += ' ' + Math.round(a.workSec / 60) + ' / ' + Math.round(a.breakSec / 60);
+    if (a.mode === 'sablier') modeText += ' ' + FL.formatTimer(a.plannedSec);
+    var subject = a.subjectId ? (d.revisions.subjects.filter(function (s) { return s.id === a.subjectId; })[0] || { name: 'Matière supprimée' }).name : 'Sans matière';
+    var chapter = a.chapterId ? (d.revisions.chapters.filter(function (c) { return c.id === a.chapterId; })[0] || { name: 'Chapitre supprimé' }).name : '—';
+    function line(label, value) { return h('div', { class: 'summary-line' }, h('span', null, label), h('strong', null, value)); }
+    B.ui.append(els.config, [
+      h('div', { class: 'card-head' }, h('h2', { class: 'section-label' }, 'Configuration'), icon('lock-simple', 'summary-lock', 'ph-fill')),
+      line('Mode', modeText),
+      line('Matière', subject),
+      line('Chapitre', chapter),
+      line('Son de fin', d.focus.settings.alerts ? 'Activé' : 'Coupé'),
+      h('p', { class: 'summary-note' }, 'Verrouillée pendant la session.')
+    ]);
+  }
+
+  /* « Aujourd'hui » : temps de travail du jour et sessions du jour. */
+  function drawToday() {
+    var d = data(), today = D.today();
+    var sessions = d.focus.sessions.filter(function (s) { return s.day === today; })
+      .sort(function (x, y) { return y.startedAt - x.startedAt; });
+    var total = sessions.reduce(function (n, s) { return n + s.duration; }, 0);
+    var hrs = Math.floor(total / 3600), mins = Math.floor((total % 3600) / 60);
+    B.ui.clear(els.today);
+    B.ui.append(els.today, [
+      h('h2', { class: 'section-label' }, 'Aujourd\'hui'),
+      h('div', { class: 'today-total' },
+        h('span', { class: 'today-big num' }, hrs > 0 ? hrs + ' h ' + D.pad(mins) : mins + ' min'),
+        h('span', { class: 'today-sub' }, 'de travail · ' + B.ui.plural(sessions.length, 'session', 'sessions'))),
+      sessions.length === 0 ? h('p', { class: 'muted small' }, 'Aucune session terminée aujourd\'hui.') : null,
+      h('div', { class: 'today-list' }, sessions.slice(0, 6).map(function (s) {
+        return h('div', { class: 'today-item' },
+          h('div', { class: 'today-item-text' },
+            h('span', null, FL.targetLabel(d, s.subjectId, s.chapterId)),
+            h('span', { class: 'today-status ' + (s.completed ? 'lvl-success' : 'lvl-warning') }, s.completed ? 'Terminée' : 'Interrompue')),
+          h('span', { class: 'today-dur num' }, D.formatDuration(s.duration).replace('h', ' h ')));
+      }))
+    ]);
+  }
+
+  /* Réglages d'une session en cours (pour garder le formulaire cohérent après l'arrêt). */
   function configOfSession(a) {
     var planned = a.plannedSec ? Math.round(a.plannedSec / 60) : 45;
     return Object.assign({}, DEFAULT_CONFIG, form || {}, {
@@ -268,16 +328,41 @@
 
   function onStart() {
     var r = FL.validateConfig(form);
-    if (!r.ok) { B.ui.setError(els.configError, r.error); return; }
-    B.ui.setError(els.configError, '');
+    if (!r.ok) {
+      if (els.configError) B.ui.setError(els.configError, r.error);
+      else B.ui.showError(new Error(r.error));
+      return;
+    }
+    if (els.configError) B.ui.setError(els.configError, '');
     unlockAudio();
     if (data().focus.settings.alerts) askNotificationPermission();
     B.store.update(function (d) { d.focus.lastConfig = Object.assign({}, form); });
     start(r.config);
+    form = configOfSession(data().focus.active);
     view.redraw();
   }
 
   /* ---------- Le cadran ---------- */
+
+  /* Frise des phases du pomodoro : les derniers cycles, la phase en cours se remplit. */
+  function phaseStrip(a, info) {
+    var p = info.pomodoro;
+    var first = Math.max(1, p.cycle - 2);
+    var segs = [];
+    for (var c = first; c <= p.cycle; c++) {
+      ['work', 'break'].forEach(function (ph) {
+        var len = ph === 'work' ? a.workSec : a.breakSec;
+        var fill;
+        if (c < p.cycle) fill = 1;
+        else if (ph === 'work') fill = p.phase === 'work' ? 1 - p.remaining / len : 1;
+        else fill = p.phase === 'break' ? 1 - p.remaining / len : 0;
+        segs.push(h('div', { class: 'strip-seg ' + ph + (fill > 0 && fill < 1 ? ' now' : ''), style: 'flex:' + len },
+          h('span', { class: 'strip-bar' }, h('span', { class: 'strip-fill', style: 'width:' + Math.round(fill * 1000) / 10 + '%' })),
+          h('span', { class: 'strip-label' }, ph === 'work' ? 'Travail' : 'Pause')));
+      });
+    }
+    return h('div', { class: 'phase-strip', 'aria-hidden': 'true' }, segs);
+  }
 
   function drawDial() {
     var d = data();
@@ -286,34 +371,45 @@
     els.dial.className = 'card focus-dial';
     onTick = null;
 
+    function dialRing(center) {
+      return h('div', { class: 'dial-ring' },
+        h('span', { class: 'dial-ticks' }),
+        h('span', { class: 'dial-square' }),
+        h('span', { class: 'dial-square rot' }),
+        h('span', { class: 'dial-arc' }),
+        center);
+    }
+
     if (!a) {
       els.dial.classList.add('idle');
-      els.dial.appendChild(h('div', { class: 'dial-top' }, h('span', { class: 'badge' }, 'PRÊT')));
-      els.dial.appendChild(h('div', { class: 'dial-ring idle' },
-        h('div', { class: 'dial-center' },
-          h('span', { class: 'dial-time num' }, '--:--'),
-          h('span', { class: 'dial-sub' }, 'Aucune session en cours'))));
+      els.dial.appendChild(h('div', { class: 'dial-top' },
+        h('span', { class: 'dial-target' }, icon('book-open'), 'Aucune session en cours'),
+        h('span', { class: 'dial-cycle' }, 'Prêt')));
+      els.dial.appendChild(dialRing(h('div', { class: 'dial-center' },
+        h('span', { class: 'dial-phase' }, '◆ Prêt'),
+        h('span', { class: 'dial-time num' }, '--:--'),
+        h('span', { class: 'dial-sub' }, 'Choisis la configuration puis démarre.'))));
       els.dial.appendChild(h('div', { class: 'dial-actions' },
         h('button', { type: 'button', class: 'btn btn-primary dial-main', onclick: onStart }, icon('play', null, 'ph-fill'), 'Démarrer')));
       return;
     }
 
     var refs = {
-      badge: h('span', { class: 'badge' }),
-      cycle: h('span', { class: 'dial-cycle num' }),
-      ring: h('div', { class: 'dial-ring' }),
+      target: h('span', { class: 'dial-target' }),
+      cycle: h('span', { class: 'dial-cycle' }),
+      ring: null,
       phase: h('span', { class: 'dial-phase' }),
       time: h('span', { class: 'dial-time num', role: 'timer', 'aria-live': 'off' }),
       sub: h('span', { class: 'dial-sub' }),
-      target: h('p', { class: 'dial-target' }),
+      strip: h('div', { class: 'strip-wrap' }),
       pauseBtn: h('button', { type: 'button', class: 'btn btn-primary dial-main', onclick: function () { togglePause(); update(Date.now()); } }),
       stopBtn: h('button', { type: 'button', class: 'btn btn-danger dial-main', onclick: function () { finish(Date.now()); } },
-        icon('stop', null, 'ph-fill'), 'Arrêter la session')
+        icon('stop', null, 'ph'), 'Arrêter')
     };
-    refs.ring.appendChild(h('div', { class: 'dial-center' }, refs.phase, refs.time, refs.sub));
-    els.dial.appendChild(h('div', { class: 'dial-top' }, refs.badge, refs.cycle));
+    refs.ring = dialRing(h('div', { class: 'dial-center' }, refs.phase, refs.time, refs.sub));
+    els.dial.appendChild(h('div', { class: 'dial-top' }, refs.target, refs.cycle));
     els.dial.appendChild(refs.ring);
-    els.dial.appendChild(refs.target);
+    els.dial.appendChild(refs.strip);
     els.dial.appendChild(h('div', { class: 'dial-actions' }, refs.pauseBtn, refs.stopBtn));
 
     function update(now) {
@@ -325,31 +421,29 @@
 
       els.dial.className = 'card focus-dial running' + (isPomo ? ' phase-' + info.phase : '') + (paused ? ' paused' : '');
 
-      // Badge : la pause est prioritaire sur tout le reste
-      B.ui.clear(refs.badge);
-      if (paused) { refs.badge.className = 'badge warning'; B.ui.append(refs.badge, [icon('pause', null, 'ph-fill'), 'EN PAUSE']); }
-      else if (isPomo && info.phase === 'break') { refs.badge.className = 'badge success'; B.ui.append(refs.badge, [icon('coffee'), 'PAUSE']); }
-      else if (isPomo) { refs.badge.className = 'badge accent'; B.ui.append(refs.badge, [h('span', { class: 'live-dot' }), 'TRAVAIL']); }
-      else { refs.badge.className = 'badge accent'; B.ui.append(refs.badge, [h('span', { class: 'live-dot' }), 'EN COURS']); }
+      B.ui.clear(refs.target);
+      B.ui.append(refs.target, [icon('book-open'), FL.targetLabel(data(), a2.subjectId, a2.chapterId, true)]);
+      refs.cycle.textContent = FL.MODES[a2.mode] + (isPomo ? ' · cycle ' + info.cycle : '');
 
-      refs.cycle.textContent = isPomo ? 'Cycle ' + info.cycle : '';
+      // La pause est prioritaire sur tout le reste
+      refs.phase.textContent = paused ? '❚❚ En pause' : isPomo ? (info.phase === 'work' ? '◆ Travail' : '◆ Pause') : '◆ En cours';
       refs.ring.style.setProperty('--p', info.progress === null ? 100 : Math.round(info.progress * 1000) / 10);
       refs.ring.classList.toggle('free', info.progress === null);
       refs.time.textContent = FL.formatTimer(info.seconds);
-      refs.phase.textContent = isPomo ? (info.phase === 'work' ? '● TRAVAIL' : 'PAUSE') : FL.MODES[a2.mode].toUpperCase();
 
-      if (paused) refs.sub.textContent = 'Temps figé. La pause n\'est jamais comptée comme du travail.';
+      if (paused) refs.sub.textContent = 'Temps figé : la pause n\'est jamais comptée comme du travail.';
       else if (a2.mode === 'sablier') refs.sub.textContent = 'restantes sur ' + FL.formatTimer(a2.plannedSec);
       else if (isPomo) refs.sub.textContent = info.phase === 'work'
-        ? 'puis ' + Math.round(a2.breakSec / 60) + ' min de pause'
-        : 'puis ' + Math.round(a2.workSec / 60) + ' min de travail';
+        ? 'restantes sur ' + FL.formatTimer(a2.workSec) + ', puis ' + Math.round(a2.breakSec / 60) + ' min de pause'
+        : 'de pause, puis ' + Math.round(a2.workSec / 60) + ' min de travail';
       else refs.sub.textContent = 'de travail effectif';
 
-      refs.target.textContent = FL.targetLabel(data(), a2.subjectId, a2.chapterId, true) + ' · ' + FL.MODES[a2.mode];
+      B.ui.clear(refs.strip);
+      if (isPomo) refs.strip.appendChild(phaseStrip(a2, info));
 
       B.ui.clear(refs.pauseBtn);
       refs.pauseBtn.className = 'btn dial-main ' + (paused ? 'btn-resume' : 'btn-primary');
-      B.ui.append(refs.pauseBtn, paused ? [icon('play', null, 'ph-fill'), 'Reprendre'] : [icon('pause', null, 'ph-fill'), 'Mettre en pause']);
+      B.ui.append(refs.pauseBtn, paused ? [icon('play', null, 'ph-fill'), 'Reprendre'] : [icon('pause', null, 'ph-fill'), 'Pause']);
     }
 
     update(Date.now());
@@ -436,7 +530,7 @@
     var a = active();
     if (!a) return null;
     var info = FL.display(a, Date.now());
-    return { text: FL.formatTimer(info.seconds), tone: a.pausedAt ? 'warning' : 'live', title: 'Session Focus en cours' };
+    return { text: FL.formatTimer(info.seconds), tone: a.pausedAt ? 'live paused' : 'live', title: a.pausedAt ? 'Session Focus en pause' : 'Session Focus en cours' };
   }
 
   function leave() {
