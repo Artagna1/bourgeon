@@ -22,8 +22,8 @@ OÙ EN EST-ON ?  (à mettre à jour à chaque reprise)
                    l'appli Python ont été converties (bourgeon-donnees-
                    python.json) — l'utilisateur doit les importer dans son
                    navigateur (bouton « Données » ▸ « Importer un fichier… »).
-  Prochaine action : reste de l'étape 9 (premier lancement, finitions
-                     mobile, PWA, appli ouverte dans deux onglets).
+  Prochaine action : mise en ligne (GitHub Pages + Supabase) — voir le
+                     journal de bord du 01/10/2026.
 
   Lancer l'appli  : double-cliquer sur index.html (aucune installation).
   Lancer les tests : double-cliquer sur tests/tests.html.
@@ -438,3 +438,28 @@ JOURNAL DE BORD
              utilisateur, fusion hors ligne) ; 3) PWA (manifest + service
              worker) ; 4) mise en ligne ; 5) import des données depuis
              l'ordinateur. Limite d'utilisation atteinte avant de commencer.
+
+01/10/2026 — Mise en ligne (option B) préparée :
+             - js/core/sync.js : synchro Supabase par module (7 lignes par
+               utilisateur, table bourgeon_docs, voir outils/supabase.sql),
+               connexion e-mail + mot de passe, hors ligne puis renvoi,
+               conflits : Journal fusionné jour par jour, autres modules =
+               modification la plus récente (heure de modif. de l'appareil,
+               colonne changed_at). 1re connexion : compte vide → envoi ;
+               appareil vide → récupération ; les deux remplis → choix.
+             - js/config.js : URL + clé publique Supabase (à remplir).
+             - Fenêtre « Données » : bloc Synchronisation ; indicateur nuage
+               sur le bouton.
+             - PWA : manifest.webmanifest, sw.js (cache, hors ligne), icônes.
+             - Journal / Sport ne réenregistrent un brouillon que s'il a été
+               modifié à l'écran (évite d'écraser une version reçue).
+             - Dépôt git local créé (branche main, 1er commit). Données
+               personnelles exclues (.gitignore).
+             Vérifié : 63 tests OK + simulation 2 appareils sur faux serveur
+             (transfert, hors ligne, conflit, fusion du journal) OK.
+             RESTE (actions de l'utilisateur puis moi) : créer le dépôt
+             GitHub « bourgeon » (public, vide) + projet Supabase, exécuter
+             outils/supabase.sql, me donner l'URL du dépôt + Project URL +
+             clé anon → je remplis config.js, j'envoie sur GitHub, on active
+             GitHub Pages, on règle Supabase (confirmation e-mail, URL du
+             site), puis création du compte et import des données.
