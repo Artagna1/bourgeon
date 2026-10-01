@@ -1,0 +1,8 @@
+# Données personnelles : ne jamais les publier
+bourgeon-donnees-python.json
+bourgeon-sauvegarde-*.json
+*.db
+
+# Outils locaux
+.claude/
+__pycache__/

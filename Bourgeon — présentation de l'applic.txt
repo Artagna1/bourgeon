@@ -1,0 +1,1029 @@
+================================================================================
+                    BOURGEON — PRÉSENTATION DE L'APPLICATION
+================================================================================
+
+Document de référence décrivant l'application Bourgeon telle qu'elle existe
+aujourd'hui (version bureau, Python / PySide6), en vue de la recréer en
+application web (HTML) grand public avec une identité visuelle nouvelle.
+
+Ce document décrit :
+  - ce qu'est l'application et à quoi elle sert (le POURQUOI) ;
+  - ce qu'elle fait, écran par écran (le QUOI) ;
+  - comment elle le fait : règles de calcul, comportements, cas limites (le
+    COMMENT) ;
+  - ce qu'elle ne fait pas (les LIMITES), volontairement ou non.
+
+Il décrit la fonction, pas l'apparence : le style visuel actuel est résumé à la
+fin, à titre indicatif, puisqu'il est appelé à changer. Les règles de calcul, en
+revanche, sont le cœur du produit et doivent être reproduites fidèlement.
+
+
+--------------------------------------------------------------------------------
+SOMMAIRE
+--------------------------------------------------------------------------------
+  1. Bourgeon en quelques mots
+  2. Principes généraux (valables partout)
+  3. Navigation et structure
+  4. Module JOURNAL
+  5. Module HABITUDES
+  6. Module FOCUS
+  7. Module OBJECTIFS
+  8. Module EISENHOWER
+  9. Module RÉVISIONS
+ 10. Module SPORT
+ 11. Liens entre les modules
+ 12. Données enregistrées (modèle de données)
+ 13. Ce que l'application ne fait pas
+ 14. Style visuel actuel (à titre indicatif, à remplacer)
+ 15. Questions à trancher pour la version web grand public
+ 16. Glossaire
+
+
+================================================================================
+1. BOURGEON EN QUELQUES MOTS
+================================================================================
+
+Bourgeon est un carnet de bord personnel tout-en-un pour s'organiser, étudier et
+progresser au quotidien. Il réunit dans une seule application sept outils qu'on
+trouve habituellement éparpillés dans plusieurs apps :
+
+  - JOURNAL      : écrire quelques lignes par jour.
+  - HABITUDES    : cocher chaque jour ses routines et suivre sa régularité
+                   (mois par mois et sur la durée).
+  - FOCUS        : chronométrer ses sessions de travail (chrono, sablier,
+                   pomodoro) et voir où passe son temps.
+  - OBJECTIFS    : lister ses objectifs avec une échéance et un statut.
+  - EISENHOWER   : trier ses tâches selon la matrice urgent / important.
+  - RÉVISIONS    : planifier ses révisions par répétition espacée (revoir une
+                   notion à J+1, J+7, J+30, J+90…).
+  - SPORT        : planifier sa semaine sportive et calculer ses allures de
+                   course à partir de sa VMA.
+
+Le nom « Bourgeon » évoque la croissance lente et régulière : l'application est
+pensée pour la constance au jour le jour plutôt que pour la performance
+ponctuelle.
+
+Public d'origine : un utilisateur unique (étudiant / sportif amateur) qui veut
+un outil simple, sans compte, sans distraction, entièrement en français.
+
+Philosophie :
+  - Une journée est l'unité de base de presque tout (une entrée de journal par
+    jour, une case d'habitude par jour, des révisions dues « aujourd'hui »…).
+  - L'utilisateur garde le contrôle : rien n'est supprimé sans son action, et
+    les suppressions lourdes (celles qui effacent un historique) demandent une
+    confirmation.
+  - Mesurer pour se motiver : chaque module qui collecte des données les
+    restitue sous forme de statistiques simples (pourcentages, séries,
+    graphiques, cartes de chaleur).
+  - Honnêteté des chiffres : le temps de pause n'est jamais compté comme du
+    travail, les taux de réussite sont plafonnés à 100 %, les séries ne sont
+    pas cassées tant que la journée n'est pas finie, etc.
+
+
+================================================================================
+2. PRINCIPES GÉNÉRAUX (VALABLES PARTOUT)
+================================================================================
+
+2.1 Données locales, pas de compte
+  Toutes les données sont stockées localement sur l'ordinateur de l'utilisateur
+  (une base SQLite, fichier « data/bourgeon.db »). Il n'y a ni compte, ni
+  connexion, ni synchronisation, ni serveur. L'application fonctionne hors
+  ligne.
+
+2.2 Enregistrement
+  La plupart des actions sont enregistrées immédiatement (cocher une case,
+  changer un statut, déplacer une tâche…). Deux exceptions notables ont un
+  bouton « Enregistrer » explicite : le texte du Journal et le texte des jours
+  du Planning sport (le Journal enregistre aussi silencieusement quand on
+  change de jour). Les champs de texte courts (nom d'habitude, objectif
+  mensuel, note d'objectif) sont enregistrés quand on quitte le champ (touche
+  Entrée ou clic ailleurs).
+
+2.3 Validation des saisies
+  - Les noms (habitude, objectif, tâche, matière, chapitre, concept, type de
+    palier) doivent faire entre 2 et 100 caractères (espaces de début/fin
+    retirés).
+  - Les dates doivent être comprises entre le 01/01/2000 et le 31/12/2100.
+  - Les erreurs s'affichent dans un petit texte rouge sous le formulaire
+    concerné (pas de fenêtre surgissante), par exemple « Merci d'indiquer un
+    nom d'objectif. » ou « Le nom doit contenir entre 2 et 100 caractères. »
+
+2.4 Suppression, archivage, gel
+  Trois niveaux de « faire disparaître » coexistent, avec des sens différents :
+  - ARCHIVER (Habitudes) : l'élément disparaît de l'usage courant mais son
+    historique reste consultable.
+  - GELER (Révisions) : l'élément reste visible dans l'arborescence mais sort
+    de la liste des choses à faire aujourd'hui. Réversible à tout moment.
+  - SUPPRIMER : effacement définitif. Quand il entraîne la perte d'un
+    historique (habitude, matière, chapitre), une confirmation explicite est
+    demandée avec un texte qui rappelle que c'est irréversible. Les éléments
+    légers (objectif, tâche Eisenhower, concept) sont supprimés sans
+    confirmation.
+
+2.5 Langue et formats
+  Tout est en français. Dates affichées au format jj/mm/aaaa ou en toutes
+  lettres (« Lundi 3 mars 2026 »). Semaines commençant le lundi.
+
+2.6 Mode clair / mode sombre
+  Un bouton en bas de la barre latérale bascule entre mode clair et mode
+  sombre. Le choix est mémorisé d'une ouverture à l'autre. Basculer ne doit
+  jamais interrompre une session Focus en cours.
+
+2.7 Mémoire de la fenêtre
+  La taille et la position de la fenêtre sont mémorisées. Taille par défaut
+  1450×860, minimum 1100×700 (application pensée pour un écran d'ordinateur).
+
+2.8 Robustesse
+  Toute erreur inattendue est affichée dans une fenêtre d'erreur plutôt que
+  d'être silencieuse, pour que l'utilisateur ne perde jamais de données sans le
+  savoir. Si la base de données est illisible au démarrage, un message
+  l'explique et l'application ne démarre pas.
+
+
+================================================================================
+3. NAVIGATION ET STRUCTURE
+================================================================================
+
+Une barre latérale fixe à gauche porte :
+  - le titre « BOURGEON » ;
+  - les 7 entrées de navigation, dans cet ordre, avec une icône :
+        📔 Journal
+        ✅ Habitudes
+        ⏱️ Focus
+        🎯 Objectifs
+        🧭 Eisenhower
+        🧠 Révisions
+        🏃 Sport
+  - en bas, le bouton « 🌙 Mode sombre » / « ☀️ Mode clair ».
+
+L'entrée active est mise en évidence. Au lancement, l'application s'ouvre sur
+le Journal. Le contenu de la section choisie occupe toute la partie droite.
+
+Quatre modules ont des sous-onglets, présentés comme un sélecteur segmenté à
+côté du titre de la page :
+  - Habitudes : Mois | Global
+  - Focus     : Session | Historique
+  - Révisions : Arborescence | Aujourd'hui
+  - Sport     : Planning | Course (VMA)
+
+Chaque fois qu'on revient sur une section, ses données sont rafraîchies (par
+exemple, les Habitudes reviennent au mois en cours).
+
+
+================================================================================
+4. MODULE JOURNAL
+================================================================================
+
+POURQUOI
+  Garder une trace écrite courte de chaque journée : ressenti, bilan, idées.
+  L'objectif est la régularité, pas la longueur — une seule entrée par jour.
+
+CE QUE L'ON VOIT
+  - Un éditeur en haut :
+      ◀  [Lundi 3 mars 2026]  [Aujourd'hui]  ▶
+      une zone de texte libre (quelques lignes visibles)
+      « ✓ Enregistré » (après sauvegarde)                     [Enregistrer]
+  - En dessous, « JOURS PRÉCÉDENTS » : une liste de cartes, de la plus récente
+    à la plus ancienne. Chaque carte affiche la date en toutes lettres, un
+    aperçu du texte (240 premiers caractères suivis de « … ») et un bouton
+    « Ouvrir ».
+
+CE QUE L'ON PEUT FAIRE
+  - Écrire le texte du jour et cliquer « Enregistrer » (confirmation
+    « ✓ Enregistré » en vert).
+  - Naviguer jour par jour avec ◀ et ▶, ou revenir à aujourd'hui.
+  - Ouvrir un jour passé depuis l'historique pour le relire ou le modifier.
+
+RÈGLES
+  - Une seule entrée par date. Réenregistrer une date remplace son texte.
+  - On ne peut pas aller dans le futur : ▶ est désactivé sur aujourd'hui.
+  - Changer de jour (◀, ▶, Aujourd'hui, Ouvrir) enregistre d'abord
+    silencieusement le texte en cours : on ne perd jamais un brouillon en
+    naviguant.
+  - Le texte est nettoyé des espaces de début et de fin.
+  - L'historique n'affiche ni le jour actuellement ouvert, ni les jours dont le
+    texte est vide.
+  - Texte brut uniquement (pas de mise en forme).
+
+
+================================================================================
+5. MODULE HABITUDES
+================================================================================
+
+POURQUOI
+  Construire des routines quotidiennes (lire, méditer, boire de l'eau…) en les
+  cochant chaque jour, et visualiser sa régularité pour rester motivé. Chaque
+  habitude a un objectif mensuel (combien de jours dans le mois on vise), ce
+  qui permet des habitudes « tous les jours » comme des habitudes « 12 fois par
+  mois ».
+
+Deux sous-onglets : MOIS (le suivi du mois affiché) et GLOBAL (le bilan depuis
+toujours).
+
+--------------------------------------------------------------------------------
+5.1 Onglet MOIS
+--------------------------------------------------------------------------------
+
+Disposition : la grille de suivi occupe la grande zone en haut à gauche ; une
+colonne à droite porte le taux de complétion du mois et le classement ; en bas,
+l'aperçu mensuel et le récap hebdomadaire côte à côte.
+
+A) GRILLE DE SUIVI (« DAILY ROUTINES »)
+  En-tête : ◀  [Mars 2026]  ▶  [Aujourd'hui]
+  Une ligne par habitude, avec les colonnes :
+    - NOM : modifiable directement dans la ligne (renommer).
+    - CIBLE : objectif du mois affiché, nombre entier de 0 à 999, modifiable
+      dans la ligne (bref contour vert pour confirmer l'enregistrement).
+      Voir la règle sur l'objectif mensuel plus bas.
+    - FAIT : nombre de cases cochées ce mois-ci.
+    - RESTE : cible − fait (jamais négatif).
+    - % : fait ÷ cible, arrondi (peut dépasser 100 % si on fait plus que la
+      cible ; vaut 0 si la cible est 0).
+    - Une barre de progression (plafonnée visuellement à 100 %).
+    - Une case à cocher par jour du mois (28 à 31 colonnes), sous les numéros
+      de jour ; le numéro du jour actuel est mis en évidence.
+    - Un bouton ✕ pour archiver l'habitude.
+  Sous la grille : un champ « Nouvelle habitude... » et un bouton « + Ajouter ».
+  Si aucune habitude : « Ajoute ta première habitude ci-dessous. »
+  La partie nom/chiffres reste fixe pendant que les colonnes de jours peuvent
+  défiler horizontalement.
+
+B) COMPLÉTION DU MOIS (anneau / donut)
+  Pourcentage global du mois = somme des « fait » de toutes les habitudes ÷
+  somme de leurs cibles.
+
+C) CLASSEMENT
+  Les habitudes du mois triées par % décroissant, chacune avec son nom, une
+  barre et son pourcentage.
+
+D) APERÇU MENSUEL (graphique en aire)
+  Pour chaque jour du mois : % des habitudes cochées ce jour-là (nombre de
+  cases cochées ÷ nombre d'habitudes). Pour le mois en cours, la courbe
+  s'arrête à aujourd'hui (les jours futurs ne sont pas tracés).
+
+E) RÉCAP HEBDOMADAIRE
+  Le mois est découpé en SEMAINES CALENDAIRES, du lundi au dimanche, coupées
+  aux bords du mois. La première et la dernière semaine peuvent donc être
+  incomplètes. Exemple, août 2026 (le 1er est un samedi) : 1–2, 3–9, 10–16,
+  17–23, 24–30, 31. Pour chaque semaine : sa plage de jours (« 3–9 »), une
+  barre et % = cases cochées dans la semaine ÷ (nombre d'habitudes × nombre
+  de jours de la semaine dans le mois). Une semaine incomplète est donc
+  évaluée sur ses seuls jours.
+
+RÈGLES DE L'ONGLET MOIS
+  - Navigation : on peut remonter dans les mois passés, mais pas aller au-delà
+    du mois en cours. « Aujourd'hui » ramène au mois actuel.
+  - Cocher / décocher une case enregistre immédiatement et met à jour tous les
+    chiffres et graphiques de la page.
+  - On peut cocher n'importe quel jour du mois affiché, y compris un jour
+    passé oublié (rattrapage). Rien n'empêche techniquement de cocher un jour
+    futur.
+  - Cible par défaut d'une nouvelle habitude : le nombre de jours du mois où
+    elle est créée (30, 31, 28…), c.-à-d. « tous les jours ».
+  - Quelles habitudes apparaissent dans un mois donné : celles créées avant la
+    fin de ce mois ET non archivées avant la fin de ce mois. Une habitude créée
+    le 20 apparaît donc dans tout le mois (y compris les jours 1 à 19). Une
+    habitude archivée disparaît du mois de son archivage et des suivants, mais
+    reste visible dans les mois antérieurs avec son historique.
+  - ARCHIVER (✕ dans la grille) demande confirmation : « Archiver « X » ? Elle
+    disparaîtra de la liste du jour, mais son historique restera consultable
+    en naviguant vers les mois où elle était suivie. »
+  - OBJECTIF MENSUEL PAR MOIS : chaque mois garde son propre objectif.
+    Modifier la cible dans la grille la change pour le mois affiché ET les
+    mois suivants, jusqu'au prochain mois où elle a été changée à nouveau.
+    Les mois précédents ne bougent jamais : leurs pourcentages restent ceux
+    de l'époque.
+    Exemple : objectif 20 depuis janvier, passé à 10 en mars, puis à 15 en
+    mai → janvier 20, février 20, mars 10, avril 10, mai 15, juin 15…
+    Modifier un mois passé (ex. avril) ne change qu'avril, puisque mai a son
+    propre objectif.
+
+--------------------------------------------------------------------------------
+5.2 Onglet GLOBAL
+--------------------------------------------------------------------------------
+
+Bilan « depuis toujours », indépendant du mois affiché, qui inclut aussi les
+habitudes archivées.
+
+A) QUATRE INDICATEURS EN HAUT
+  - HABITUDES SUIVIES : nombre total d'habitudes (archivées comprises).
+  - MEILLEURE SÉRIE EN COURS : la plus longue série actuelle parmi toutes les
+    habitudes, en jours.
+  - TOTAL RÉALISÉ : nombre total de cases cochées, toutes habitudes et toutes
+    périodes confondues (« fois »).
+  - RÉUSSITE GLOBALE : total réalisé ÷ total attendu, plafonné à 100 %. C'est
+    une moyenne pondérée : une habitude ancienne pèse plus qu'une habitude
+    créée la semaine dernière.
+
+B) TABLEAU PAR HABITUDE (trié par taux de réussite décroissant)
+  Colonnes : HABITUDE | SÉRIE ACTU. | RECORD | TOTAL FAIT | RÉUSSITE |
+             12 DERNIERS MOIS | ✕
+  - SÉRIE ACTUELLE : nombre de jours consécutifs cochés se terminant
+    aujourd'hui. Si aujourd'hui n'est pas encore coché, la série se compte
+    jusqu'à hier (on ne casse pas une série tant que la journée n'est pas
+    finie). Accompagnée d'une petite flamme.
+  - RECORD : plus longue suite de jours consécutifs cochés de tout
+    l'historique.
+  - TOTAL FAIT : nombre total de jours cochés.
+  - RÉUSSITE : total fait ÷ total attendu, plafonné à 100 %. Le total
+    attendu est la somme des objectifs de chaque mois depuis la création
+    (mois de création et mois en cours inclus), chaque mois comptant avec
+    l'objectif qui était le sien (ex. ci-dessus, de janvier à avril :
+    20 + 20 + 10 + 10 = 60).
+    Couleur de la pastille : vert si ≥ 80 %, orange si ≥ 50 %, rouge sinon.
+  - 12 DERNIERS MOIS : mini-histogramme de 12 barres (du plus ancien au mois en
+    cours), chaque barre = % de l'objectif DE CE MOIS-LÀ atteint, plafonné à
+    100 %.
+    Au survol : « Mars 2026 — 18 fois ».
+  - ✕ : SUPPRESSION DÉFINITIVE de l'habitude et de tout son historique, avec
+    confirmation : « Supprimer « X » et tout son historique ? Cette action est
+    définitive et irréversible : toutes les coches enregistrées pour cette
+    habitude seront perdues. »
+  Si aucune habitude : « Aucune habitude pour le moment. »
+
+
+================================================================================
+6. MODULE FOCUS
+================================================================================
+
+POURQUOI
+  Mesurer le temps réellement passé à travailler, par matière (et
+  éventuellement par chapitre), pour se concentrer pendant une session et
+  savoir après coup où est passé son temps. Trois façons de travailler sont
+  proposées selon les préférences : un chronomètre libre, un compte à rebours,
+  ou la méthode Pomodoro.
+
+Deux sous-onglets : SESSION et HISTORIQUE.
+
+--------------------------------------------------------------------------------
+6.1 Onglet SESSION
+--------------------------------------------------------------------------------
+
+Deux cartes côte à côte, toujours visibles : CONFIGURATION à gauche, l'état de
+la session (le « cadran ») à droite.
+
+A) CARTE CONFIGURATION
+  - CIBLE : [Matière] [Chapitre] — travailler sur toute une matière, ou sur un
+    chapitre précis de cette matière.
+  - MATIÈRE : liste déroulante des matières créées dans le module Révisions,
+    précédée de « — Aucune matière — » (on peut travailler sans matière).
+  - CHAPITRE (seulement si la cible est « Chapitre ») : liste des chapitres de
+    la matière choisie. Messages possibles dans la liste : « — Choisis d'abord
+    une matière — », « — Aucun chapitre dans cette matière — », « — Choisir un
+    chapitre — ».
+  - MODE : [Chrono] [Sablier] [Pomodoro]
+      · Chrono   : aucun réglage.
+      · Sablier  : Durée [ h ] h [ min ] min — heures de 0 à 23, minutes de 0 à
+                   59, 0 h 45 par défaut. Un champ vide compte comme 0.
+      · Pomodoro : Travail [25] Pause [5] (en minutes, de 1 à 300), avec la
+                   mention « Tourne à l'infini jusqu'à l'arrêt manuel. »
+  - Un message d'erreur éventuel : « Merci de choisir une matière. », « Merci
+    de choisir un chapitre. », « Merci de vérifier les durées saisies. »
+    (durées vides, invalides, ou sablier à 0).
+  - Bouton « ▶ Démarrer la session ».
+  Pendant une session, toute la carte Configuration est désactivée.
+
+B) CARTE D'ÉTAT (LE CADRAN)
+  Au repos :
+    badge « PRÊT », temps « --:-- », texte « Aucune session en cours »,
+    bouton « ▶ Démarrer » (même action que le bouton de la configuration).
+  En session :
+    - Une ligne « Matière · Chapitre · Mode » (ex. « Maths · Intégrales ·
+      Pomodoro »), ou « Sans matière · Chrono ».
+    - Pomodoro uniquement : un badge de phase « ● TRAVAIL » (bleu) ou
+      « ☕ PAUSE » (vert), et la carte entière prend la teinte de la phase.
+    - Un très grand affichage du temps (MM:SS, ou H:MM:SS au-delà d'une heure) :
+        · Chrono   : temps écoulé, qui monte.
+        · Sablier  : temps restant, qui descend.
+        · Pomodoro : temps restant dans la phase en cours, qui descend.
+    - Pomodoro uniquement : « Cycle 3 » (numéro du cycle travail + pause en
+      cours).
+    - Boutons « ⏸ Mettre en pause » / « ▶ Reprendre » et
+      « ■ Arrêter la session ».
+    - En pause : badge orange « ⏸ EN PAUSE », temps grisé et figé, contour
+      orange sur la carte — la pause est prioritaire visuellement sur tout le
+      reste.
+  L'affichage se met à jour chaque seconde.
+
+RÈGLES DE LA SESSION
+  - Le temps est calculé à partir de l'heure de début et de l'heure actuelle
+    (pas en comptant des tics) : il reste juste même si l'ordinateur ralentit.
+  - PAUSE : le temps passé en pause n'est JAMAIS compté, ni à l'écran ni dans
+    la durée enregistrée. S'interrompre ne doit pas gonfler le temps de travail.
+    On peut faire autant de pauses que voulu.
+  - SABLIER : quand le compte à rebours atteint 0, la session se termine toute
+    seule et est enregistrée comme « Terminée ». Arrêtée avant la fin, elle est
+    enregistrée comme « Interrompue » avec le temps réellement passé. C'est le
+    SEUL cas de session « Interrompue ».
+  - CHRONO : tourne jusqu'à l'arrêt manuel, qui est sa fin normale : la
+    session est enregistrée comme « Terminée ».
+  - POMODORO : enchaîne indéfiniment Travail → Pause → Travail → Pause… sans
+    pause longue, jusqu'à l'arrêt manuel. Seul le temps des phases de TRAVAIL
+    est enregistré (les pauses du cycle ne comptent pas). Le nombre de phases
+    de travail terminées est aussi enregistré. Comme pour le Chrono, l'arrêt
+    manuel est la fin normale : la session est « Terminée ».
+    Exemple (25/5) : arrêt après 1 h 10 → phases 0–25 travail, 25–30 pause,
+    30–55 travail, 55–60 pause, 60–70 travail → 25 + 25 + 10 = 60 min
+    enregistrées, 2 cycles de travail terminés.
+  - Le bouton Arrêter reste disponible pendant toute la session.
+  - Une session en cours continue si l'on change de section ou de thème ; on
+    peut aller cocher ses habitudes pendant qu'elle tourne.
+  - Une session n'est enregistrée qu'à son arrêt (ou à la fin du sablier). Elle
+    est rattachée au jour de son DÉBUT.
+  - FERMER L'APPLICATION pendant une session : une confirmation s'affiche
+    (« Une session Focus est en cours (Maths). Quitter maintenant l'arrête et
+    l'enregistre dans l'historique. Quitter quand même ? »). Oui → la session
+    est arrêtée et enregistrée comme par le bouton Arrêter, puis
+    l'application se ferme. Non → l'application reste ouverte et la session
+    continue. Une session n'est donc jamais perdue par une fermeture
+    normale.
+  - Si la matière ou le chapitre visé est supprimé pendant la session (depuis
+    Révisions), la session est quand même enregistrée : rattachée à la matière
+    si seul le chapitre a disparu, sinon « Sans matière ». Pendant la session,
+    le cadran affiche alors « Matière supprimée » ou « Chapitre supprimé ».
+
+--------------------------------------------------------------------------------
+6.2 Onglet HISTORIQUE
+--------------------------------------------------------------------------------
+
+A) RÉCAP PAR MATIÈRE
+  Sélecteur de période : Cette semaine (depuis lundi) | Ce mois | Cette année |
+  Tout. Une ligne par matière ayant du temps sur la période, triées du plus au
+  moins de temps : nom (ou « Sans matière »), barre proportionnelle (la
+  matière la plus travaillée = barre pleine), durée totale (« 45 min »,
+  « 2h05 »). Sinon : « Aucune session sur cette période. »
+
+B) 8 DERNIÈRES SEMAINES (carte de chaleur)
+  Grille de 8 colonnes (semaines, de la plus ancienne à la semaine en cours) ×
+  7 lignes (lundi → dimanche). Chaque case = un jour, d'autant plus colorée que
+  le temps de travail est grand ; l'intensité maximale est atteinte à 2 h et
+  au-delà. Les jours futurs ne sont pas affichés. Au survol : « 03/03/2026 —
+  1h20 » ou « 03/03/2026 — aucune session ».
+
+C) SESSIONS RÉCENTES
+  Les 5 dernières sessions, de la plus récente à la plus ancienne. Colonnes :
+  date et heure de début (« 03/03 14:30 »), matière · chapitre, mode (Chrono /
+  Sablier / Pomodoro), durée enregistrée, statut en pastille : « Terminée »
+  (vert) ou « Interrompue » (neutre, uniquement pour un sablier arrêté avant
+  la fin). Sinon : « Aucune session enregistrée pour le moment. »
+
+
+================================================================================
+7. MODULE OBJECTIFS
+================================================================================
+
+POURQUOI
+  Garder sous les yeux ses objectifs à moyen terme (passer un examen, courir un
+  semi, lire 10 livres…), avec une date limite pour savoir combien de temps il
+  reste, et un statut pour faire le bilan.
+
+CE QUE L'ON VOIT
+  - Un formulaire : [Nom de l'objectif] [date avec calendrier, jj/mm/aaaa]
+    [Ajouter]. La date proposée par défaut est aujourd'hui.
+  - La liste des objectifs, triée par échéance (la plus proche en premier).
+    Chaque carte contient :
+      · le nom de l'objectif et un bouton ✕ ;
+      · « Échéance : 15/06/2026 · 104 jours restants »
+        ou « Échéance : 01/02/2026 · échéance dépassée depuis 30 jours »
+        (le décompte n'apparaît que si l'objectif est « En cours ») ;
+      · un sélecteur de statut coloré : En cours (bleu) / Atteint (vert) /
+        Abandonné (gris) ;
+      · un champ « Ajouter une note... » (une ligne de texte libre).
+  - Si la liste est vide : « Aucun objectif pour le moment. »
+
+RÈGLES
+  - Nom obligatoire (2 à 100 caractères), date entre 2000 et 2100.
+  - Nouvel objectif = statut « En cours ».
+  - La note est enregistrée en quittant le champ.
+  - Accords singulier/pluriel gérés (« 1 jour restant », « 2 jours
+    restants »).
+  - ✕ supprime immédiatement, sans confirmation.
+  - Pas de lien avec les autres modules (un objectif ne se remplit pas tout
+    seul à partir des habitudes ou du Focus).
+
+
+================================================================================
+8. MODULE EISENHOWER
+================================================================================
+
+POURQUOI
+  Prioriser ses tâches selon la matrice d'Eisenhower : croiser l'URGENCE et
+  l'IMPORTANCE pour savoir quoi faire tout de suite, quoi planifier, quoi
+  déléguer et quoi abandonner. Le principe clé de Bourgeon : on capture
+  d'abord vite, on trie ensuite. Une tâche ne peut être créée que dans une
+  zone « Non triées », puis on la glisse dans le bon quadrant.
+
+CE QUE L'ON VOIT
+  En haut à droite : bouton « Masquer terminées » / « Afficher terminées ».
+  À gauche, une grille 2 × 2 :
+    ┌───────────────────────────────┬───────────────────────────────┐
+    │ 1. Urgent · Important         │ 2. Important · Pas urgent     │
+    │    → Faire maintenant (bleu)  │    → Planifier (vert)         │
+    ├───────────────────────────────┼───────────────────────────────┤
+    │ 3. Urgent · Pas important     │ 4. Pas urgent · Pas important │
+    │    → Déléguer (rouge)         │    → Éliminer (gris)          │
+    └───────────────────────────────┴───────────────────────────────┘
+  À droite, une colonne « 📥 NON TRIÉES — Glisser vers un quadrant », avec
+  en bas un formulaire : [Nouvelle tâche…] [Deadline] [＋].
+  Chaque zone affiche un bandeau de titre avec son action recommandée et un
+  compteur de tâches. Zone vide : « Aucune tâche ici. »
+
+  Chaque tâche est une carte : un bouton rond pour la marquer faite (✓), sa
+  description, sa deadline éventuelle. Au survol apparaissent « Éditer » et ✕.
+
+CE QUE L'ON PEUT FAIRE
+  - Ajouter une tâche (description obligatoire, 2 à 100 caractères ; deadline
+    facultative) — uniquement dans « Non triées ».
+  - Glisser-déposer une tâche d'une zone à une autre (y compris revenir dans
+    « Non triées »), ou à une autre position dans la même zone pour la
+    réordonner. La position de lâcher détermine l'ordre.
+  - Marquer faite / non faite (la tâche reste à sa place).
+  - Éditer description et deadline dans la carte (✓ pour valider, ✕ pour
+    annuler).
+  - Supprimer (✕), immédiatement, sans confirmation.
+  - Masquer / afficher les tâches terminées (non mémorisé : réaffichées au
+    redémarrage).
+
+RÈGLES
+  - La « deadline » est un TEXTE LIBRE (« vendredi », « 12/03 », « avant
+    l'exam »…), pas une vraie date : elle n'est ni triée, ni vérifiée, ni
+    utilisée pour signaler un retard.
+  - Chaque zone garde son propre ordre (priorité 1, 2, 3…), recalculé à chaque
+    déplacement.
+
+
+================================================================================
+9. MODULE RÉVISIONS
+================================================================================
+
+POURQUOI
+  Retenir durablement ce qu'on apprend grâce à la RÉPÉTITION ESPACÉE : revoir
+  une notion peu après l'avoir apprise, puis à des intervalles de plus en plus
+  longs (par défaut J+1, J+7, J+30, J+90), puis l'entretenir régulièrement.
+  Bourgeon ne contient pas le contenu à réviser (pas de fiches) : il sert de
+  PLANNING. L'utilisateur liste ses notions, et l'application lui dit chaque
+  jour lesquelles revoir.
+
+  Les matières créées ici servent aussi au module Focus.
+
+Deux sous-onglets : ARBORESCENCE (organiser et suivre) et AUJOURD'HUI (la
+liste de révisions du jour).
+
+--------------------------------------------------------------------------------
+9.1 Vocabulaire
+--------------------------------------------------------------------------------
+  - MATIÈRE  : ex. « Maths ». Nom unique.
+  - CHAPITRE : ex. « Intégrales », rattaché à une matière.
+  - CONCEPT  : une notion à retenir, ex. « Intégration par parties »,
+               rattachée à un chapitre. C'est l'unité qu'on révise.
+  - PALIER   : une étape de révision, exprimée en jours après l'ajout du
+               concept (« J+7 »). La liste des paliers (ex. 1, 7, 30, 90)
+               forme un rythme.
+  - ENTRETIEN : le dernier palier. Une fois atteint, il se répète
+               indéfiniment à son propre intervalle (ex. tous les 90 jours).
+
+--------------------------------------------------------------------------------
+9.2 Onglet ARBORESCENCE
+--------------------------------------------------------------------------------
+
+A) LIGNE DE RÉGLAGES (en haut)
+  - « Paliers par défaut (jours, séparés par des virgules) : » [1,7,30,90]
+    [Enregistrer] — le rythme utilisé par toute matière qui n'en a pas de
+    propre.
+  - [Gérer les types de paliers…] — ouvre une fenêtre pour créer des rythmes
+    nommés et réutilisables (ex. « Intensif : 1,3,7,14 », « Langues :
+    1,2,4,8,16,32 »). Pour chaque type : nom, liste de jours, suppression.
+    Texte d'aide : « Un type de palier peut être assigné à plusieurs matières
+    depuis l'en-tête de chacune. Une matière sans type assigné utilise le
+    réglage « Paliers par défaut ». »
+  - « Nouvelle journée à partir de : » [0h … 11h] — voir règle 9.4.F.
+  - Une légende des 4 états d'une case de palier :
+      Fait (plein, couleur d'accent) · En retard (contour épais orange) ·
+      À faire (contour normal) · Verrouillé (grisé).
+
+B) L'ARBRE
+  Des sections dépliables sur 3 niveaux : Matière ▸ Chapitre ▸ Concept.
+  - En-tête de MATIÈRE : ▶/▼ + nom, un sélecteur de rythme (« Défaut » ou un
+    type nommé), un bouton ❄ (geler) / ☀ (dégeler), un bouton ✕.
+    Chaque matière affiche sa propre ligne d'en-têtes de colonnes :
+    « J+1  J+7  J+30  J+90 (entretien) » (le dernier palier porte la mention
+    « entretien »). Deux matières peuvent donc avoir des colonnes différentes.
+  - En-tête de CHAPITRE : ▶/▼ + nom, ❄/☀, ✕.
+  - Ligne de CONCEPT : nom, puis une case à cocher par palier alignée sous les
+    en-têtes, puis ❄/☀ et ✕.
+  - Formulaires d'ajout : « Nouvelle matière… » [+ Matière] en bas de l'arbre ;
+    « Nouveau chapitre… » [+ Chapitre] dans chaque matière ; « Nouveau
+    concept… » [+ Concept] dans chaque chapitre.
+  - Arbre vide : « Ajoute une première matière ci-dessous. »
+
+  Interactions :
+  - Clic simple sur un titre : replier / déplier.
+  - Double-clic sur un nom (matière, chapitre, concept) : renommer sur place ;
+    Entrée valide, Échap annule.
+  - ✕ sur une matière ou un chapitre : confirmation (« Supprimer « X » ainsi
+    que tous ses chapitres et concepts ? Cette action est définitive et
+    irréversible… »). ✕ sur un concept : suppression immédiate.
+  - ❄ (info-bulle « Geler (masqué de "Aujourd'hui") ») / ☀ (« Dégeler »).
+
+--------------------------------------------------------------------------------
+9.3 Onglet AUJOURD'HUI
+--------------------------------------------------------------------------------
+  - Un titre rappelant la journée concernée : « Journée du lundi 3 mars »
+    (important quand la journée ne bascule pas à minuit, voir 9.4.F).
+  - La liste à plat, toutes matières confondues, des concepts dont le palier
+    en cours est dû aujourd'hui ou en retard, triée de l'échéance la plus
+    ancienne à la plus récente. Chaque carte :
+      [case]  Intégration par parties — Maths / Intégrales
+              J+7 · échéance 03/03/2026 · 2 j de retard   (en orange si en
+                                                            retard)
+    La mention « · N j de retard » n'apparaît que si le concept est en retard.
+  - TAILLE SELON LE RETARD : plus le retard (aujourd'hui − échéance, en jours)
+    est grand, plus le titre du concept est gros et gras, pour que les
+    révisions les plus en souffrance sautent aux yeux. La montée est rapide
+    dès le premier jour, puis plafonne au 4e jour :
+        Retard   | 0 j (dû aujourd'hui) | 1 j  | 2 j  | 3 j  | 4 j et plus
+        Taille   | 13 px (normale)      | 17px | 19px | 21px | 22px (plafond)
+        Graisse  | normale              | gras | gras | extra-gras | extra-gras
+    Seul le titre grossit ; la ligne d'échéance reste petite. Le plafond reste
+    sous la taille du titre de page, pour ne pas casser la hiérarchie de
+    l'écran. Comme la liste est triée par échéance, les titres les plus gros
+    sont en haut.
+  - Cocher la case valide ce palier (même effet que dans l'arbre) ; le concept
+    disparaît de la liste.
+  - Rien à faire : « Rien à réviser aujourd'hui. 🎉 »
+
+--------------------------------------------------------------------------------
+9.4 Règles de calcul (le cœur du module)
+--------------------------------------------------------------------------------
+
+Exemple de référence : paliers 1, 7, 30, 90 ; concept ajouté le 1er mars.
+
+A) Échéance du premier palier
+   Date d'ajout + premier palier → J+1 = 2 mars.
+
+B) Échéances des paliers suivants : ancrées sur la date RÉELLE de validation
+   Chaque palier suivant est dû (écart entre les deux paliers) jours après la
+   date où le palier précédent a réellement été coché.
+   - Si J+1 est coché le 2 mars (à l'heure) : J+7 est dû le 2 + (7 − 1) =
+     8 mars — soit bien le 1er + 7.
+   - Si J+1 est coché en retard le 5 mars : J+7 est dû le 5 + 6 = 11 mars.
+   Cocher en retard décale toute la suite du même nombre de jours, pour ne pas
+   enchaîner des retards en cascade. Le libellé (« J+7 ») ne change pas, seule
+   l'échéance interne bouge. Cocher en avance ancre de la même façon la suite
+   sur la date du jour.
+
+C) Ordre imposé
+   - Seul le prochain palier non validé est cochable (« À faire », ou « En
+     retard » si son échéance est dépassée). On peut le cocher avant son
+     échéance.
+   - Les paliers suivants sont « Verrouillés » (non cliquables).
+   - Seul le DERNIER palier validé peut être décoché (annulation d'une erreur :
+     le palier redevient actif avec son ancienne échéance). Les paliers validés
+     plus anciens ne sont plus modifiables.
+
+D) En retard
+   Le palier en cours est « en retard » si son échéance est strictement passée
+   (antérieure à aujourd'hui). Dû aujourd'hui = à faire, pas encore en retard.
+   Un concept apparaît dans « Aujourd'hui » dès que l'échéance du palier en
+   cours est aujourd'hui ou avant.
+
+E) Entretien (dernier palier)
+   - Valider le dernier palier fait entrer le concept en ENTRETIEN (c'est aussi
+     la première révision d'entretien).
+   - Ensuite, cette case se « décoche » automatiquement quand l'entretien
+     redevient dû : (intervalle du dernier palier) jours après la dernière
+     révision d'entretien (ex. tous les 90 jours). Le concept réapparaît alors
+     dans « Aujourd'hui ».
+   - La cocher enregistre la révision d'entretien du jour et relance le cycle.
+     Une fois cochée, elle ne peut pas être décochée.
+   - Un concept n'est donc jamais « terminé » : il reste entretenu à vie.
+
+F) Heure de début de journée (« Nouvelle journée à partir de »)
+   Réglable de 0 h (minuit, par défaut) à 11 h. Avant cette heure, on est
+   encore « hier » pour ce module : à 2 h du matin avec un réglage à 4 h, la
+   liste « Aujourd'hui » est celle de la veille, et une révision cochée est
+   datée de la veille. Pourquoi : pour qu'une session de révision tardive ne
+   voie pas sa liste se réinitialiser en plein milieu. Ce réglage ne concerne
+   QUE le module Révisions (le reste de l'application bascule à minuit). La
+   liste se rafraîchit toute seule au passage de cette heure, même si
+   l'application est restée ouverte (ou après une mise en veille).
+
+G) Rythmes (paliers) par matière
+   - Un rythme = une liste de nombres entiers strictement positifs, séparés
+     par des virgules. Les doublons sont retirés et la liste est triée. Il faut
+     au moins un palier. Messages : « Il faut au moins un palier. », « Les
+     paliers doivent être des nombres de jours strictement positifs. »…
+   - Chaque matière utilise soit le rythme par défaut, soit un type nommé.
+   - Supprimer un type nommé renvoie les matières qui l'utilisaient sur le
+     rythme par défaut.
+   - Changer de rythme ne casse pas la progression : un concept qui a validé
+     2 paliers garde ses 2 paliers validés dans le nouveau rythme, et un
+     concept déjà en entretien y reste.
+   - Noms de matières et de types de paliers uniques (« Une matière porte déjà
+     ce nom. »).
+
+H) Gel
+   - On peut geler une matière, un chapitre ou un concept, indépendamment.
+   - Un élément gelé, ou dont le chapitre ou la matière est gelé, n'apparaît
+     plus dans « Aujourd'hui ». Il reste visible et modifiable dans l'arbre.
+   - Le gel ne suspend PAS le calendrier : les échéances continuent de courir,
+     un concept dégelé peut donc réapparaître directement en retard.
+   - Usage type : une matière dont l'examen est passé, un chapitre qu'on met de
+     côté.
+
+
+================================================================================
+10. MODULE SPORT
+================================================================================
+
+POURQUOI
+  Deux besoins simples de coureur amateur : avoir sous les yeux sa semaine
+  d'entraînement type, et connaître ses allures cibles et ses temps
+  prévisibles à partir de sa VMA (vitesse maximale aérobie), sans refaire les
+  calculs à la main.
+
+Deux sous-onglets : PLANNING et COURSE (VMA).
+
+--------------------------------------------------------------------------------
+10.1 Onglet PLANNING
+--------------------------------------------------------------------------------
+  Sept cartes, du lundi au dimanche. Chacune contient le nom du jour, une zone
+  de texte libre (ex. « Footing 45 min EF » ou « Fractionné 10×400 »), un
+  bouton « Enregistrer » et une confirmation « ✓ Enregistré ».
+  - C'est une semaine TYPE, qui se répète : pas de dates, pas de calendrier.
+  - Chaque jour s'enregistre séparément (on peut modifier lundi sans perdre le
+    brouillon de jeudi).
+
+--------------------------------------------------------------------------------
+10.2 Onglet COURSE (VMA)
+--------------------------------------------------------------------------------
+
+A) TA VMA
+  Grand affichage de la VMA en km/h (16,5 par défaut), avec deux boutons
+  « ✎ Modifier » et « 🧪 Test VMA ». Les deux ouvrent la même petite fenêtre
+  de saisie « VMA (KM/H) » (nombre décimal strictement positif ; erreurs
+  « Merci de saisir un nombre valide. », « La VMA doit être positive. »). Il
+  n'y a pas de protocole de test guidé : « Test VMA » sert à saisir le
+  résultat d'un test fait par ailleurs.
+  Toutes les tables ci-dessous sont recalculées depuis la VMA.
+
+B) PRÉDICTION DE CHRONOS (RIEGEL)
+  Temps estimés sur 5 km, 10 km, semi-marathon (21,0975 km) et marathon
+  (42,195 km).
+  Calcul :
+    1. Allure de référence 10 km = 90 % de la VMA.
+       Temps 10 km = 10 ÷ (VMA × 0,90) heures.
+    2. Autres distances par la formule de Riegel :
+       T = T(10 km) × (distance ÷ 10) ^ 1,06
+  Exemple, VMA 16,5 : 10 km à 14,85 km/h → 40:24.
+  Affichage M:SS, ou H:MM:SS au-delà d'une heure.
+
+C) TABLE D'ALLURES PAR ZONE D'EFFORT
+  Zone                      | % VMA     | Usage
+  Endurance fondamentale    | 60–70 %   | Sorties longues, récupération active
+  Endurance active          | 70–80 %   | Footing soutenu, sorties actives
+  Seuil / Tempo             | 80–90 %   | Allure semi-marathon, tempo run
+  VMA longue                | 90–100 %  | Fractionné long (1000-2000 m)
+  VMA courte / Sprint       | 100–110 % | Fractionné court (30/30, 200-400 m)
+  Pour chaque zone, la vitesse (km/h, 1 décimale) et l'allure (min:s par km)
+  sont calculées au MILIEU de la fourchette (ex. 65 % pour l'endurance
+  fondamentale). Allure = 3600 ÷ vitesse, en secondes par km.
+  Exemple, VMA 16,5 : endurance fondamentale → 10,7 km/h → 5:36/km.
+
+D) TABLEAU DE PRÉDICTIONS (% VMA)
+  Tableau croisé :
+  - lignes : 100 m, 200 m, 300 m, 400 m, 500 m, 600 m, 700 m, 800 m, 900 m,
+    1 km, 2 km, 5 km, 10 km ;
+  - colonnes : 110 %, 105 %, 100 %, 95 %, 90 %, 85 %, 80 %, 75 %, 70 % de la
+    VMA ;
+  - chaque case : temps pour couvrir la distance à ce pourcentage,
+    temps = distance ÷ (VMA × %). Sert à préparer les séances de fractionné.
+    Exemple, VMA 16,5 : 400 m à 100 % → 1:27.
+
+
+================================================================================
+11. LIENS ENTRE LES MODULES
+================================================================================
+
+Les modules sont volontairement indépendants, à une exception près :
+
+  RÉVISIONS → FOCUS : les matières et chapitres créés dans Révisions sont ceux
+  proposés dans la configuration d'une session Focus. Le récap « par matière »
+  de Focus s'appuie dessus. Supprimer une matière dans Révisions ne supprime
+  pas les sessions Focus passées : elles passent en « Sans matière » (ou
+  gardent la matière si seul le chapitre disparaît).
+
+Aucun autre lien : une habitude n'est pas cochée automatiquement par une
+session Focus, un objectif n'est pas relié à des tâches Eisenhower, etc.
+
+
+================================================================================
+12. DONNÉES ENREGISTRÉES (MODÈLE DE DONNÉES)
+================================================================================
+
+Vue simplifiée de ce qui est stocké, utile pour concevoir le stockage de la
+version web.
+
+JOURNAL
+  entrée de journal : date (unique), texte, date de dernière modification
+
+HABITUDES
+  habitude : nom, position (ordre d'affichage), objectif mensuel d'origine,
+             date de création, date d'archivage (vide si active)
+  changement d'objectif : habitude + mois (AAAA-MM) + objectif — vaut pour
+             ce mois et les suivants, jusqu'au changement suivant
+  coche    : habitude + date (une coche par habitude et par jour)
+
+FOCUS
+  session : matière (optionnelle), chapitre (optionnel), mode
+            (chrono/sablier/pomodoro), début, fin, durée enregistrée en
+            secondes (hors pauses), durée visée (sablier), terminée (oui/non ;
+            « non » seulement pour un sablier arrêté avant la fin),
+            nombre de cycles de travail (pomodoro)
+
+OBJECTIFS
+  objectif : nom, échéance, statut (en cours / atteint / abandonné),
+             date de création, note
+
+EISENHOWER
+  tâche : description, deadline (texte libre), faite (oui/non),
+          zone (0 = non triées, 1 à 4 = quadrants), rang dans la zone
+
+RÉVISIONS
+  type de paliers : nom (unique), liste de jours
+  matière  : nom (unique), date de gel, type de paliers (optionnel)
+  chapitre : matière, nom, date de gel
+  concept  : chapitre, nom, date d'ajout, nombre de paliers validés,
+             dates réelles de validation de chaque palier,
+             date de la dernière révision d'entretien (vide si pas encore en
+             entretien), date de gel
+  réglages : paliers par défaut, heure de début de journée
+
+SPORT
+  réglages : VMA (km/h)
+  planning : un texte par jour de la semaine (lundi → dimanche)
+
+PRÉFÉRENCES D'INTERFACE
+  mode sombre (oui/non), taille et position de la fenêtre
+
+Suppressions en cascade : supprimer une habitude supprime ses coches et ses
+changements d'objectif ;
+supprimer une matière supprime ses chapitres et concepts ; supprimer un
+chapitre supprime ses concepts. Les sessions Focus, elles, sont conservées.
+
+
+================================================================================
+13. CE QUE L'APPLICATION NE FAIT PAS
+================================================================================
+
+13.1 Limites générales
+  - Pas de compte utilisateur, pas de connexion, pas de multi-utilisateur.
+  - Pas de synchronisation entre appareils, pas de sauvegarde en ligne.
+  - Pas d'export ni d'import de données (CSV, PDF, JSON…), pas de fonction de
+    sauvegarde / restauration intégrée.
+  - Pas de notifications ni de rappels (ni pour les habitudes, ni pour les
+    révisions dues, ni pour les échéances).
+  - Pas de version mobile ni de mise en page adaptée aux petits écrans.
+  - Pas de bouton « annuler » global.
+  - Pas de recherche transversale.
+  - Pas de personnalisation (couleurs, ordre des modules, modules masquables).
+  - Pas d'autre langue que le français.
+  - Pas de tableau de bord d'accueil qui résume tous les modules.
+
+13.2 Par module
+  JOURNAL
+  - Pas de mise en forme (gras, listes, images), pas de tags, pas d'humeur
+    notée, pas de recherche dans les entrées, pas d'entrée datée dans le futur.
+
+  HABITUDES
+  - Uniquement des habitudes quotidiennes « faites / pas faites » : pas de
+    quantité (ex. « 2 litres »), pas de jours prévus (ex. « lundi, mercredi,
+    vendredi »), pas d'habitude hebdomadaire.
+  - Pas de réordonnancement des habitudes (ordre = ordre de création).
+  - Pas de catégories ni de couleurs par habitude.
+  - Pas de désarchivage depuis l'interface.
+
+  FOCUS
+  - Pas de son ni d'alerte à la fin d'un sablier ou d'une phase de pomodoro.
+  - Pas de pause longue en pomodoro, pas de nombre de cycles planifié.
+  - Pas de blocage de distractions (un ancien « Focus Lock », plein écran
+    forcé + verrouillage clavier, a été retiré).
+  - Pas de modification, suppression ou ajout manuel de session dans
+    l'historique ; seules les 5 dernières sessions sont listées.
+  - Pas de reprise d'une session après relance : fermer l'application arrête
+    et enregistre la session (après confirmation). En cas de plantage ou
+    d'arrêt brutal de l'ordinateur, la session en cours est perdue.
+  - Sablier limité à 23 h 59.
+
+  OBJECTIFS
+  - Pas de sous-étapes, pas de pourcentage d'avancement, pas de lien avec les
+    habitudes ou le Focus, pas de rappel à l'approche de l'échéance.
+
+  EISENHOWER
+  - La deadline n'est pas une vraie date (pas de tri, pas d'alerte).
+  - Pas d'archivage des tâches faites (on peut seulement les masquer), pas de
+    sous-tâches, pas de récurrence.
+
+  RÉVISIONS
+  - Pas de contenu à réviser : pas de fiches, pas de questions/réponses, pas
+    de notes, pas d'images (des notes, des tags et des images ont existé puis
+    ont été retirés).
+  - Pas d'algorithme adaptatif (type Anki / SM-2) : les intervalles sont fixes
+    et ne dépendent pas de la difficulté ressentie. Une intégration avec Anki
+    a existé et a été abandonnée.
+  - Pas d'historique consultable des révisions faites ni de statistiques de
+    révision.
+  - Pas de déplacement d'un concept vers un autre chapitre.
+
+  SPORT
+  - Pas de journal des séances effectuées, pas de suivi de distance, de
+    kilométrage ou de progression (une bibliothèque complète de séances avec
+    historique a existé et a été abandonnée au profit du simple texte par
+    jour).
+  - Pas de GPS, pas de connexion à une montre ou à Strava.
+  - Pas de protocole de test VMA guidé.
+  - Uniquement la course à pied pour les calculs.
+
+
+================================================================================
+14. STYLE VISUEL ACTUEL (À TITRE INDICATIF, À REMPLACER)
+================================================================================
+
+Pour mémoire, afin de savoir de quoi on s'éloigne :
+  - Style « néo-brutaliste » : bordures noires épaisses (2 px), angles presque
+    droits, aucune ombre, aplats de couleur, titres en majuscules très gras.
+  - Fond crème clair (#F5F3EC), cartes blanches, encre quasi noire (#141412).
+  - Couleurs de sens : bleu vif (#2540E8) pour l'accent / le travail / « en
+    cours », vert (#1F8F4E) pour la réussite / la pause / « atteint », orange
+    (#E08A00) pour l'alerte / le retard / la pause de session, rouge
+    (#E0342B) pour le danger / la suppression.
+  - Mode sombre : on inverse l'encre et le fond (fond #141412, texte #F0EDE6).
+  - Police : Segoe UI.
+
+Codes de sens à CONSERVER quel que soit le nouveau style (ils portent de
+l'information) :
+  - Un état « en retard » doit sauter aux yeux (Révisions, Objectifs). Dans
+    « Aujourd'hui » (Révisions), l'importance visuelle d'un concept doit en
+    plus croître avec l'ampleur du retard (voir 9.3).
+  - Un état « en pause » doit dominer visuellement le cadran Focus.
+  - Travail et pause d'un pomodoro doivent se distinguer d'un coup d'œil.
+  - Les 4 quadrants Eisenhower doivent avoir chacun une couleur distincte.
+  - Les 4 états d'une case de palier (fait / en retard / à faire / verrouillé)
+    doivent être distinguables et expliqués par une légende.
+  - Le taux de réussite des habitudes : 3 niveaux (≥ 80 %, ≥ 50 %, < 50 %).
+  - Les actions destructrices doivent se distinguer des autres.
+
+
+================================================================================
+15. QUESTIONS À TRANCHER POUR LA VERSION WEB GRAND PUBLIC
+================================================================================
+
+La version actuelle est pensée pour un seul utilisateur sur un ordinateur. Le
+passage au web grand public soulève des choix qui ne relèvent pas du visuel et
+qu'il vaut mieux trancher avant de lancer la génération du code :
+
+  1. Stockage : données dans le navigateur uniquement (simple, hors ligne, mais
+     perdues si on vide le navigateur et non partagées entre appareils) ou
+     comptes utilisateurs avec serveur (synchronisation, mais plus lourd) ?
+  2. Sauvegarde : si stockage local, prévoir au minimum un export / import
+     (fichier JSON) pour que l'utilisateur ne perde pas ses données ?
+  3. Mobile : l'application actuelle suppose un grand écran (grille de 31
+     jours, matrice 2×2 + colonne, tableau VMA de 9 colonnes). Faut-il une
+     mise en page téléphone ?
+  4. Session Focus : dans un navigateur, l'onglet peut être fermé ou mis en
+     veille. Faut-il reprendre une session en cours après rechargement de la
+     page (en mémorisant l'heure de début et les pauses) ?
+  5. Notifications : un son ou une notification navigateur à la fin d'un
+     sablier / d'une phase de pomodoro, et un rappel des révisions du jour ?
+  6. Glisser-déposer Eisenhower : prévoir une alternative au toucher (menu
+     « Déplacer vers… ») pour mobile ?
+  7. Modules : garder les 7 ou en rendre certains optionnels (le module Sport
+     est plus spécialisé que les autres) ?
+  8. Langue : français seul, ou prévoir d'autres langues ?
+  9. Premier lancement : proposer une aide ou des exemples (une habitude, une
+     matière de démonstration) pour un public qui découvre l'outil ?
+
+
+================================================================================
+16. GLOSSAIRE
+================================================================================
+
+  Archiver      Retirer une habitude du suivi courant en gardant son historique.
+  Chrono        Mode Focus qui compte le temps écoulé sans limite.
+  Cible         (Habitudes) nombre de jours visés dans le mois.
+                (Focus) matière entière ou chapitre précis travaillé.
+  Concept       Notion à retenir dans le module Révisions.
+  Entretien     Dernier palier de révision, répété indéfiniment.
+  Geler         Masquer un élément de la liste « Aujourd'hui » des Révisions,
+                sans le supprimer.
+  Heatmap       Carte de chaleur : grille de jours colorés selon l'intensité.
+  Palier        Étape de révision exprimée en jours (J+1, J+7…).
+  Pomodoro      Méthode de travail alternant phases de travail et de pause.
+  Riegel        Formule d'extrapolation de temps de course entre distances.
+  Sablier       Mode Focus à compte à rebours d'une durée choisie.
+  Série         Nombre de jours consécutifs où une habitude a été cochée.
+  VMA           Vitesse maximale aérobie, en km/h, base des allures de course.
+
+================================================================================
+                                   FIN
+================================================================================

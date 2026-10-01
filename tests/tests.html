@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bourgeon — tests</title>
+  <style>
+    body { font-family: system-ui, "Segoe UI", sans-serif; background: #F4F1EA; color: #1E2620; margin: 0; padding: 24px 16px; }
+    main { max-width: 760px; margin: 0 auto; }
+    h1 { margin: 0 0 4px; }
+    .summary { font-weight: 700; margin: 0 0 16px; }
+    .summary.ok { color: #1E8F5C; }
+    .summary.ko { color: #CF3A31; }
+    li { padding: 6px 0; border-bottom: 1px solid #E2DDD2; list-style: none; }
+    ul { padding: 0; }
+    .err { color: #CF3A31; font-size: 13px; margin-left: 24px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>🌱 Bourgeon — tests</h1>
+    <p class="summary" id="summary"></p>
+    <ul id="list"></ul>
+  </main>
+
+  <script src="../js/core/dates.js"></script>
+  <script src="../js/core/validate.js"></script>
+  <script src="../js/core/store.js"></script>
+  <script src="../js/core/ui.js"></script>
+  <script src="../js/core/backup.js"></script>
+  <script src="../js/core/sync.js"></script>
+  <script src="../js/modules/journal.js"></script>
+  <script src="../js/modules/goals.js"></script>
+  <script src="../js/modules/habits-logic.js"></script>
+  <script src="../js/modules/revisions-logic.js"></script>
+  <script src="../js/modules/focus-logic.js"></script>
+  <script src="../js/modules/eisenhower-logic.js"></script>
+  <script src="../js/modules/sport-logic.js"></script>
+  <script src="tests.js"></script>
+  <script>
+    (function () {
+      var results = Bourgeon.tests.run();
+      var failed = results.filter(function (r) { return !r.ok; }).length;
+      var summary = document.getElementById('summary');
+      summary.textContent = failed === 0
+        ? '✓ ' + results.length + ' tests réussis'
+        : '✗ ' + failed + ' test(s) en échec sur ' + results.length;
+      summary.className = 'summary ' + (failed === 0 ? 'ok' : 'ko');
+      var list = document.getElementById('list');
+      results.forEach(function (r) {
+        var li = document.createElement('li');
+        li.textContent = (r.ok ? '✅ ' : '❌ ') + r.name;
+        if (!r.ok) {
+          var e = document.createElement('div');
+          e.className = 'err';
+          e.textContent = r.error;
+          li.appendChild(e);
+        }
+        list.appendChild(li);
+      });
+    })();
+  </script>
+</body>
+</html>

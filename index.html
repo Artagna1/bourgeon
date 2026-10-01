@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bourgeon</title>
+  <meta name="theme-color" content="#161826">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bourgeon">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='30' fill='%239184d9'/></svg>">
+  <script>
+    // Applique le thème avant l'affichage, pour éviter un flash de couleur.
+    // Bourgeon est sombre par défaut (style Nocturne) ; le choix de
+    // l'utilisateur est ensuite mémorisé.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('bourgeon.theme'); } catch (e) {}
+      if (t !== 'light' && t !== 'dark') t = 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <!-- Icônes Phosphor (copie locale, fonctionne hors ligne) -->
+  <link rel="stylesheet" href="vendor/phosphor/regular/style.css">
+  <link rel="stylesheet" href="vendor/phosphor/fill/style.css">
+  <link rel="stylesheet" href="vendor/phosphor/bold/style.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Synchronisation (Supabase, copie locale) et configuration -->
+  <script src="vendor/supabase/supabase.js"></script>
+  <script src="js/config.js"></script>
+
+  <!-- Socle -->
+  <script src="js/core/dates.js"></script>
+  <script src="js/core/validate.js"></script>
+  <script src="js/core/store.js"></script>
+  <script src="js/core/ui.js"></script>
+  <script src="js/core/backup.js"></script>
+  <script src="js/core/sync.js"></script>
+
+  <!-- Modules (ajoutés au fil des étapes) -->
+  <script src="js/modules/journal.js"></script>
+  <script src="js/modules/goals.js"></script>
+  <script src="js/modules/habits-logic.js"></script>
+  <script src="js/modules/habits.js"></script>
+  <script src="js/modules/revisions-logic.js"></script>
+  <script src="js/modules/revisions.js"></script>
+  <script src="js/modules/focus-logic.js"></script>
+  <script src="js/modules/focus.js"></script>
+  <script src="js/modules/eisenhower-logic.js"></script>
+  <script src="js/modules/eisenhower.js"></script>
+  <script src="js/modules/sport-logic.js"></script>
+  <script src="js/modules/sport.js"></script>
+
+  <!-- Démarrage -->
+  <script src="js/app.js"></script>
+</body>
+</html>

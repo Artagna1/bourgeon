@@ -1,0 +1,440 @@
+================================================================================
+                  BOURGEON WEB — PLAN DE DÉVELOPPEMENT
+================================================================================
+
+Document de suivi du projet : recréer Bourgeon (appli bureau Python/PySide6)
+en application web HTML grand public, avec une nouvelle identité visuelle.
+
+Référence fonctionnelle : « Bourgeon — présentation de l'applic.txt »
+(les règles de calcul qui y sont décrites doivent être reproduites fidèlement).
+
+Plan validé le : 30/09/2026
+Dernière mise à jour : 30/09/2026 (étape 1 terminée)
+
+Légende de l'avancement :  [ ] à faire   [~] en cours   [x] terminé
+
+
+--------------------------------------------------------------------------------
+OÙ EN EST-ON ?  (à mettre à jour à chaque reprise)
+--------------------------------------------------------------------------------
+
+  Étape actuelle : Étape 9 en cours. Export / import faits ; les données de
+                   l'appli Python ont été converties (bourgeon-donnees-
+                   python.json) — l'utilisateur doit les importer dans son
+                   navigateur (bouton « Données » ▸ « Importer un fichier… »).
+  Prochaine action : reste de l'étape 9 (premier lancement, finitions
+                     mobile, PWA, appli ouverte dans deux onglets).
+
+  Lancer l'appli  : double-cliquer sur index.html (aucune installation).
+  Lancer les tests : double-cliquer sur tests/tests.html.
+
+
+--------------------------------------------------------------------------------
+ORGANISATION DES FICHIERS
+--------------------------------------------------------------------------------
+
+  index.html            page unique de l'application
+  css/style.css         styles Nocturne ; couleurs en variables (sombre par
+                        défaut, clair via data-theme="light")
+  vendor/inter/         police Inter (copie locale, hors ligne)
+  vendor/phosphor/      icônes Phosphor regular / fill / bold (copie locale) ;
+                        s'utilisent avec Bourgeon.ui.icon('timer')
+  js/core/dates.js      dates "AAAA-MM-JJ" en heure locale, semaines au lundi,
+                        formats français, journée logique, durées
+  js/core/validate.js   validation des noms (2–100 car.) et dates (2000–2100)
+  js/core/store.js      stockage localStorage (clé "bourgeon.data"), format
+                        versionné + migrations, jamais d'écrasement si illisible
+  js/core/ui.js         outils d'interface : h() (créer du HTML), sous-onglets,
+                        confirmations, erreurs, « ✓ Enregistré »
+  js/app.js             coquille : barre latérale, navigation, thème, erreurs
+  js/modules/*.js       un fichier par module (à créer, étapes 2 à 8) ;
+                        chaque module s'enregistre dans Bourgeon.modules.<id>
+                        avec render(container, tabId) et leave() facultatif
+  js/core/backup.js     fenêtre « Données » : exporter / importer un JSON
+  outils/convertir_depuis_python.py
+                        conversion de la base de l'appli bureau
+                        (../bullet_hab_tracker/data/bourgeon.db, lecture
+                        seule) -> bourgeon-donnees-python.json
+  tests/tests.html      page de tests automatiques (tests/tests.js)
+
+  Choix technique : scripts classiques (pas de modules ES) pour que
+  index.html fonctionne en double-clic, sans serveur. Tout passe par l'objet
+  global « Bourgeon ». Le thème est stocké à part (clé "bourgeon.theme").
+
+
+================================================================================
+ÉTAPES
+================================================================================
+
+[x] ÉTAPE 0 — Décisions
+    Trancher les questions listées plus bas avant d'écrire du code.
+
+[x] ÉTAPE 1 — Fondations
+    [x] Structure des fichiers du projet.
+    [x] Coquille de l'appli : barre latérale, navigation entre les 7 modules,
+        sous-onglets (sélecteur segmenté), mode clair / sombre mémorisé.
+    [x] Couche de stockage unique (lecture / écriture des données), avec un
+        numéro de version du format pour pouvoir le faire évoluer sans casser
+        les données existantes.
+    [x] Utilitaires communs :
+          - dates (semaines commençant le lundi, format jj/mm/aaaa, dates en
+            toutes lettres, « journée décalée » du module Révisions) ;
+          - validation (noms de 2 à 100 caractères, dates 2000–2100) ;
+          - fenêtre de confirmation, messages d'erreur rouges sous les
+            formulaires, affichage des erreurs inattendues.
+    [x] Design de base : couleurs de sens, typographie, espacements
+        (nouvelle identité visuelle).
+    [x] Page de tests automatiques (dates, validation, stockage).
+
+[x] ÉTAPE 2 — Module JOURNAL
+    Le plus simple : sert à valider toute la chaîne (affichage, sauvegarde,
+    navigation). Une entrée par jour, pas de futur, enregistrement silencieux
+    au changement de jour, historique des jours précédents.
+    Fichier : js/modules/journal.js. Ajouts : libellé « Aujourd'hui / Hier /
+    Il y a N jours », enregistrement silencieux aussi en changeant de
+    section et à la fermeture de l'onglet (crochet flush).
+
+[x] ÉTAPE 3 — Module OBJECTIFS
+    Formulaire, liste triée par échéance, statuts (En cours / Atteint /
+    Abandonné), jours restants / dépassés, note, accords singulier/pluriel.
+    Fichier : js/modules/goals.js. Choix : « échéance aujourd'hui » quand il
+    reste 0 jour ; objectif en retard encadré en orange avec icône ; trait
+    de couleur à gauche de chaque carte selon le statut ; calendrier natif
+    du navigateur pour la date.
+
+[x] ÉTAPE 4 — Module HABITUDES
+    [x] Moteur de calcul : objectif mensuel qui s'applique aux mois suivants,
+        séries (actuelle / record), taux de réussite, semaines calendaires.
+    [x] Onglet MOIS : grille de suivi, anneau de complétion, classement,
+        aperçu mensuel (aire), récap hebdomadaire, archivage.
+    [x] Onglet GLOBAL : 4 indicateurs, tableau par habitude, histogramme des
+        12 derniers mois, suppression définitive.
+    Fichiers : js/modules/habits-logic.js (règles, testées) et
+    js/modules/habits.js (affichage). Choix et précisions :
+      - jours futurs non cochables (décision 12) ;
+      - habitude archivée : le « total attendu » s'arrête au mois précédant
+        l'archivage (le document ne précisait pas ; sinon son taux de
+        réussite baisserait indéfiniment après l'archivage) ;
+      - aperçu mensuel en courbe « aire » SVG (comme le document), avec
+        info-bulle par jour ;
+      - cocher / changer une cible met à jour la ligne et les panneaux sans
+        redessiner la grille (la saisie reste fluide) ;
+      - cible invalide → « La cible doit être un nombre entier entre 0 et
+        999. » sous la grille, valeur précédente remise.
+
+[x] ÉTAPE 5 — Module RÉVISIONS  (le cœur le plus délicat)
+    [x] Moteur de calcul testé à part : échéances ancrées sur la date réelle
+        de validation, ordre imposé, décochage du dernier palier seulement,
+        entretien, heure de début de journée, gel.
+    [x] Onglet ARBORESCENCE : matière ▸ chapitre ▸ concept, cases de palier
+        à 4 états + légende, renommage, gel, suppression.
+    [x] Rythmes : paliers par défaut + types de paliers nommés.
+    [x] Onglet AUJOURD'HUI : liste triée, titres qui grossissent avec le
+        retard (13 / 17 / 19 / 21 / 22 px), rafraîchissement automatique.
+    Fichiers : js/modules/revisions-logic.js (règles, testées) et
+    js/modules/revisions.js (affichage). Choix et précisions :
+      - intervalle d'entretien = valeur du dernier palier (ex. 90 j) ;
+      - juste après l'entrée en entretien (aucune révision d'entretien
+        faite depuis), la dernière case peut encore être décochée pour
+        corriger une erreur ; ensuite elle ne se décoche plus ;
+      - rythme plus court que la progression : le concept passe en
+        entretien (ancré sur sa dernière validation) ;
+      - noms de matières / types uniques sans tenir compte des majuscules ;
+      - graisses 400 / 600 / 600 / 700 / 700 pour 0 / 1 / 2 / 3 / 4+ j ;
+      - renommer : double-clic (ou F2 sur un concept) ;
+      - compteur orange dans la barre latérale = révisions dues (orange
+        s'il y a du retard), comme dans la maquette.
+    Au passage : les fenêtres de confirmation traitent la réponse dès le
+    clic (js/core/ui.js), plus fiable que l'événement « close » seul.
+
+[x] ÉTAPE 6 — Module FOCUS  (dépend des matières de Révisions)
+    [x] Session : Chrono / Sablier / Pomodoro, temps calculé depuis des
+        horodatages, pauses jamais comptées, découpage pomodoro, statut
+        Terminée / Interrompue, cible matière ou chapitre.
+    [x] Comportement web : session qui survit au changement de section et de
+        thème (+ reprise après rechargement, selon décision).
+    [x] Onglet HISTORIQUE : récap par matière (période), carte de chaleur
+        8 semaines, 5 dernières sessions.
+    Fichiers : js/modules/focus-logic.js (règles, testées) et
+    js/modules/focus.js (moteur + affichage). Choix et précisions :
+      - la session en cours est enregistrée (data.focus.active) et reprend
+        toute seule après rechargement ; le temps écoulé page fermée compte
+        (la session tournait). Un sablier arrivé au bout pendant ce temps se
+        termine au chargement, enregistré « Terminée » à son heure de fin ;
+      - son (bip généré, pas de fichier) à la fin du sablier et à chaque
+        changement de phase pomodoro ; notification du navigateur seulement
+        si la page est en arrière-plan (autorisation demandée au 1er
+        démarrage). Case « Son… » dans la configuration pour couper ;
+      - limite du navigateur : un onglet en arrière-plan depuis longtemps
+        peut ne vérifier le temps qu'une fois par minute → l'alerte peut
+        arriver avec un peu de retard (le temps enregistré reste exact) ;
+      - compteur « ● 23:43 » dans la barre latérale pendant une session
+        (orange en pause), comme dans la maquette ;
+      - chrono : anneau plein (pas de durée cible) ; sablier / pomodoro :
+        anneau de progression ; pause pomodoro en vert.
+
+[x] ÉTAPE 7 — Module EISENHOWER
+    Zone « Non triées » + 4 quadrants colorés, glisser-déposer (et
+    réordonnancement), fait / non fait, édition dans la carte, suppression,
+    masquer / afficher terminées.
+    Fichiers : js/modules/eisenhower-logic.js (règles, testées) et
+    js/modules/eisenhower.js (affichage). Choix et précisions :
+      - couleurs des quadrants : 1 accent (violet), 2 vert, 3 rouge,
+        4 gris ; « Non triées » neutre ;
+      - glisser-déposer à la souris avec un trait lumineux à l'endroit du
+        dépôt ; alternative « Déplacer vers… » (toucher / clavier) qui
+        propose aussi « Monter » / « Descendre » (décision 6) ;
+      - compteur de zone = tâches affichées (tient compte du masquage) ;
+      - outils (déplacer, Éditer, ✕) au survol ; toujours visibles sur
+        écran tactile ;
+      - deadline limitée à 60 caractères.
+
+[x] ÉTAPE 8 — Module SPORT
+    [x] Onglet PLANNING : semaine type, un texte par jour.
+    [x] Onglet COURSE (VMA) : saisie VMA, prédictions Riegel, zones d'effort,
+        tableau de temps de passage (% VMA).
+    Fichiers : js/modules/sport-logic.js (calculs, testés) et
+    js/modules/sport.js (affichage). Choix et précisions :
+      - planning : le jour actuel est mis en évidence ; un brouillon non
+        enregistré est quand même sauvegardé en quittant la section ou la
+        page (comme le Journal, pour ne jamais perdre de texte) ;
+      - VMA : virgule ou point acceptés, affichage « 16,5 » ;
+      - valeurs de référence (VMA 16,5) : 5 km 19:23, 10 km 40:24,
+        semi 1:29:09, marathon 3:05:52 ; EF 10,7 km/h → 5:36/km ;
+        400 m à 100 % → 1:27 ;
+      - colonne 100 % mise en évidence dans le tableau de passage.
+
+[~] ÉTAPE 9 — Fonctions transverses (selon décisions)
+    [x] Export / import JSON : bouton « Données » dans la barre latérale.
+        L'import remplace TOUTES les données (confirmation avec résumé du
+        fichier et des données actuelles), puis recharge la page.
+    [x] Conversion des données de l'appli Python (voir « REPRISE DES
+        DONNÉES » plus bas).
+    Export / import JSON, premier lancement (aide / exemples), adaptation
+    mobile, installable + hors ligne (PWA), sons / notifications.
+    À prévoir aussi : appli ouverte dans deux onglets en même temps (le
+    dernier onglet qui enregistre écrase l'autre) — détecter et prévenir.
+
+[ ] ÉTAPE 10 — Vérification
+    Tests automatiques reprenant les exemples du document de référence :
+      - VMA 16,5 → 10 km en 40:24 ; endurance fondamentale 10,7 km/h
+        → 5:36/km ; 400 m à 100 % → 1:27 ;
+      - Pomodoro 25/5 arrêté après 1 h 10 → 60 min enregistrées, 2 cycles ;
+      - Objectif habitude 20 (janv.) → 10 (mars) → 15 (mai) :
+        attendu janvier–avril = 20 + 20 + 10 + 10 = 60 ;
+      - Concept ajouté le 1er mars, J+1 coché le 5 mars → J+7 dû le 11 mars ;
+      - Août 2026 → semaines 1–2, 3–9, 10–16, 17–23, 24–30, 31.
+    Puis recette manuelle module par module et mise en ligne éventuelle.
+
+
+================================================================================
+DÉCISIONS  (à compléter au fur et à mesure)
+================================================================================
+
+Toutes les décisions sont prises (30/09/2026) : l'utilisateur a validé les
+recommandations. Pour les questions sans recommandation, les choix par défaut
+ci-dessous ont été retenus (modifiables à tout moment).
+
+A. Technique et contexte
+  1. Niveau / objectif    → appli qui marche, code clair et commenté en
+                            français pour pouvoir le lire.
+  2. Technologie          → HTML / CSS / JavaScript simple, sans
+                            installation (scripts classiques, double-clic sur
+                            index.html).
+  3. Mise en ligne        → usage local d'abord ; compatible GitHub Pages plus
+                            tard. PWA (installable, hors ligne) à l'étape 9.
+
+B. Questions de la section 15 du document de référence
+  4. Stockage             → navigateur uniquement (localStorage).
+  5. Export / import JSON → oui (étape 9).
+  6. Mobile               → adaptation de base dès maintenant (barre latérale
+                            → barre du haut), finitions à l'étape 9.
+  7. Session Focus        → reprise automatique après rechargement de la page
+                            (heure de début et pauses mémorisées).
+  8. Sons / notifications → son + notification navigateur (optionnelle) à la
+                            fin d'un sablier / d'une phase pomodoro. Pas de
+                            rappel des révisions (impossible page fermée
+                            sans serveur).
+  9. Modules              → les 7, dans l'ordre des étapes.
+ 10. Premier lancement    → appli vide avec messages d'accueil explicatifs
+                            (pas de données de démonstration).
+
+C. Identité visuelle
+ 11. Ambiance             → REMPLACÉE le 30/09/2026 par le système « Nocturne »
+                            (voir « RÉFÉRENCE DESIGN » ci-dessous). Codes de
+                            sens de la section 14 conservés.
+
+D. Points à préciser
+ 12. Habitudes, jour futur → coche BLOQUÉE sur les jours futurs (écart
+                             volontaire avec la version bureau).
+ 13. Graphiques            → dessinés « maison » (SVG), sans bibliothèque.
+
+
+================================================================================
+RÉFÉRENCE DESIGN
+================================================================================
+
+Maquette : projet claude.ai/design « Bourgeon Directions »
+  https://claude.ai/design/p/0f5679a3-d4b8-4258-addb-05d380e7203c
+  fichier « Bourgeon Directions.dc.html » (lecture via /design-login).
+Direction retenue : 2a « Carnet · bureau » (barre latérale + cartes).
+Système : Nocturne (dossier _ds/nocturne-… du projet, readme.md).
+
+Règles du style à respecter dans chaque module :
+  - Sombre par défaut ; mode clair dérivé des mêmes rampes.
+  - Police Inter ; titres en poids 500 maximum (hiérarchie par la taille).
+  - Accent #9184d9 (bleu-violet) en trait / contour / lueur, jamais en aplat.
+  - Boutons à contour (principal = contour accent), jamais pleins.
+  - Filets qui s'estompent aux extrémités (classe .rule), pas de traits nets.
+  - Cartes : fond --surface, rayon 14 px, ombre --shadow-sm (liseré).
+  - Étiquettes de section : 10,5 px, majuscules, espacées (.section-label).
+  - Chiffres alignés (font-variant-numeric: tabular-nums, classe .num).
+  - Icônes Phosphor ; icône pleine (ph-fill) pour l'élément actif.
+  - Couleurs de sens : réussite vert oklch(0.76 0.12 155), alerte/retard/
+    pause orange oklch(0.78 0.13 70), danger rouge oklch(0.7 0.14 25) ;
+    travail / en cours = accent.
+
+Idées de la maquette à reprendre dans les modules :
+  - Habitudes · Mois : grille avec colonnes « Fait / cible » et « % », cases
+    cochées = pastille accent, case du jour = contour accent, jour actuel
+    surligné dans l'en-tête ; anneau de complétion avec lueur ; classement
+    avec barres colorées par niveau + légende ≥ 80 / ≥ 50 / < 50 % ; aperçu
+    mensuel en barres verticales ; récap hebdo en barres fines.
+  - Focus : cadran circulaire (anneau de progression), badge TRAVAIL,
+    boutons Pause (accent) / Arrêter (rouge) ; en pause, fond teinté orange,
+    temps grisé, frise des phases travail / pause.
+  - Révisions « Aujourd'hui » : titres qui grossissent avec le retard, case
+    à contour orange épais si en retard.
+  - Journal : date en grand, historique en liste avec filets estompés.
+
+Points de la maquette NON intégrés (à décider) :
+  - Une entrée « Aujourd'hui » en tête de la barre latérale (tableau de bord
+    du jour : habitudes, révisions dues, journal). C'est une nouvelle
+    fonction, absente du document de référence.
+  - Compteurs dans la barre latérale (révisions dues en orange, chrono Focus
+    en cours) : à ajouter quand les modules concernés existeront.
+
+
+================================================================================
+REPRISE DES DONNÉES DE L'APPLI PYTHON (30/09/2026)
+================================================================================
+
+Source : ../bullet_hab_tracker/data/bourgeon.db (lue sans être modifiée).
+Commande : python outils/convertir_depuis_python.py
+Résultat : bourgeon-donnees-python.json, à importer via « Données ».
+Si l'appli Python est encore utilisée avant la bascule, relancer la
+commande puis réimporter.
+
+Correspondances :
+  - Journal : entrées vides ignorées (27 entrées).
+  - Habitudes : objectif mensuel -> cible de base ; dates de création /
+    archivage ramenées au jour ; 10 habitudes, 416 coches.
+  - Objectifs : in_progress / achieved / abandoned -> En cours / Atteint /
+    Abandonné.
+  - Eisenhower : même numérotation (0 = Non triées), priorité -> ordre.
+  - Révisions : paliers par défaut 1,3,5,9,14,30,45, début de journée 4 h,
+    type « Classique ». Les dates de palier inconnues (« ? », validées
+    avant l'historique des dates) sont remplacées par la date « à l'heure »
+    théorique (ajout + palier) : c'est exactement ce que l'appli Python
+    utilisait pour calculer l'échéance suivante (65 dates concernées).
+  - Focus : stopwatch / timer / pomodoro -> Chrono / Sablier / Pomodoro ;
+    matière déduite du chapitre si besoin ; 198 sessions.
+  - Sport : VMA 14 km/h ; planning vide.
+  - Non repris (fonctions retirées) : images de concepts, liste de blocage
+    Focus. Préférences d'affichage (mode clair, fenêtre) non reprises.
+
+Vérification croisée (30/09/2026) : les 15 révisions dues aujourd'hui sont
+identiques (concepts, échéances, paliers) dans les deux applis, et les
+totaux Focus par matière sont identiques à la seconde près.
+
+
+================================================================================
+JOURNAL DE BORD
+================================================================================
+
+30/09/2026 — Lecture du document de référence, plan en 10 étapes proposé
+             et validé. Questions de l'étape 0 posées, réponses en attente.
+
+30/09/2026 — Décisions validées (recommandations). Étape 1 réalisée :
+             coquille (navigation, thème clair/sombre, mobile de base),
+             stockage versionné, utilitaires dates / validation / interface,
+             styles, page de tests (13 tests OK). Les 7 modules affichent
+             « Module en préparation ».
+
+30/09/2026 — Style « Nocturne » (maquette claude.ai/design, direction 2a)
+             appliqué à la coquille : couleurs, Inter, icônes Phosphor (copies
+             locales dans vendor/), barre latérale avec point lumineux, boutons
+             à contour, sombre par défaut, mode clair dérivé. Mobile : réglette
+             défilante en haut avec trait lumineux. Vérifié par captures
+             d'écran (bureau sombre / clair, mobile).
+
+30/09/2026 — Étape 2 : module Journal (éditeur avec grande date, navigation
+             ◀ ▶ Aujourd'hui dans l'en-tête, historique avec aperçu 240 car.
+             et bouton Ouvrir). 4 tests ajoutés (17 au total, tous OK) +
+             vérification des clics dans le navigateur (sauvegarde silencieuse
+             au changement de jour et de section, pas de futur).
+
+30/09/2026 — Étape 3 : module Objectifs (formulaire nom + date + Ajouter,
+             liste triée par échéance, statut coloré, note enregistrée en
+             quittant le champ, suppression immédiate). 4 tests ajoutés
+             (21 au total, tous OK) + vérification des clics dans le
+             navigateur.
+
+30/09/2026 — Étape 4 : module Habitudes (onglets Mois et Global) selon la
+             maquette 2a : grille avec colonnes fixes et jours défilants,
+             anneau de complétion, classement coloré par niveau, courbe du
+             mois, récap hebdo, indicateurs globaux, séries avec flamme,
+             mini-histogrammes 12 mois. 11 tests ajoutés (32 au total, tous
+             OK, dont les exemples du document : 20/20/10/10/15/15, total
+             attendu 60, semaines d'août 2026) + vérification des clics
+             (coche, cible, renommage, navigation, archivage, suppression).
+
+30/09/2026 — Étape 5 : module Révisions (arborescence avec cases de palier
+             à 4 états + légende, rythmes par matière, fenêtre « types de
+             paliers », gel, renommage, onglet Aujourd'hui avec titres qui
+             grossissent selon le retard, rafraîchissement au changement de
+             journée). Compteurs dans la barre latérale (B.app.refreshBadges,
+             B.store.onChange). 9 tests ajoutés (41 au total, tous OK, dont
+             l'exemple du document : J+1 coché le 5 mars → J+7 le 11 mars)
+             + scénario de clics complet dans le navigateur.
+
+30/09/2026 — Étape 6 : module Focus (configuration verrouillée pendant la
+             session, cadran circulaire avec états travail / pause pomodoro /
+             en pause, moteur indépendant de l'écran, reprise après
+             rechargement, son + notification, historique : récap par
+             matière et période, carte de chaleur 8 semaines, 5 dernières
+             sessions). Crochet init() des modules dans app.js. 9 tests
+             ajoutés (50 au total, tous OK, dont l'exemple du document :
+             pomodoro 25/5 arrêté à 1 h 10 → 60 min, 2 cycles) + scénario
+             de clics complet dans le navigateur.
+
+30/09/2026 — Étape 7 : module Eisenhower (matrice 2 × 2 + « Non triées »,
+             glisser-déposer, menu « Déplacer vers… » avec monter /
+             descendre, fait / non fait, édition dans la carte, suppression,
+             masquer les terminées). 4 tests ajoutés (54 au total, tous OK)
+             + scénario de clics complet (dont un glisser-déposer simulé).
+
+30/09/2026 — Étape 8 : module Sport (planning de la semaine type, VMA avec
+             fenêtre Modifier / Test VMA, prédictions de Riegel, allures par
+             zone, tableau des temps de passage). 5 tests ajoutés (59 au
+             total, tous OK) + scénario de clics. Les 7 modules sont
+             terminés.
+
+30/09/2026 — Reprise des données de l'appli Python : script de conversion
+             (outils/), fenêtre « Données » (export / import, js/core/
+             backup.js), B.store.parse / importData / exportData. Bug corrigé
+             pendant les tests : un brouillon du Journal resté à l'écran était
+             réécrit par-dessus les données importées au rechargement
+             (B.app.closeSection() avant l'import). Import testé de bout en
+             bout dans le navigateur (données de test bien effacées).
+
+30/09/2026 — Question : utiliser Bourgeon aussi sur téléphone (mêmes
+             données). Options présentées : A claude.ai, B GitHub Pages +
+             Supabase, C sans synchro. DÉCISION : B (hébergement GitHub
+             Pages + synchronisation Supabase, PWA installable / hors ligne).
+             À FAIRE (session suivante) : 1) l'utilisateur crée un compte
+             GitHub et un compte Supabase (gratuits) ; 2) couche de synchro
+             dans js/core/store.js (connexion par e-mail, données par
+             utilisateur, fusion hors ligne) ; 3) PWA (manifest + service
+             worker) ; 4) mise en ligne ; 5) import des données depuis
+             l'ordinateur. Limite d'utilisation atteinte avant de commencer.
