@@ -151,9 +151,8 @@
           B.ui.confirm({
             title: 'Renvoyer les données de cet appareil ?',
             message: 'Les données de cet appareil (' + summary(B.store.get()) + ') vont remplacer celles du compte. ' +
-              'Les autres appareils les recevront à leur prochaine synchronisation.
-
-À utiliser si un autre appareil n'affiche pas les bonnes données.',
+              'Les autres appareils les recevront à leur prochaine synchronisation.\n\n' +
+              'À utiliser si un autre appareil n\'affiche pas les bonnes données.',
             confirmLabel: 'Renvoyer', danger: true
           }).then(function (ok) { if (ok) B.sync.forceUpload(); });
         }

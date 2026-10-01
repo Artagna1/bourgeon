@@ -8,7 +8,7 @@
  *
  * Après une mise à jour importante, augmenter VERSION pour vider l'ancien cache.
  */
-var VERSION = 'bourgeon-v3';
+var VERSION = 'bourgeon-v4';
 
 var FILES = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
