@@ -9,6 +9,6 @@
  */
 window.Bourgeon = window.Bourgeon || {};
 window.Bourgeon.config = {
-  supabaseUrl: '',
-  supabaseKey: ''
+  supabaseUrl: 'https://jnvhnycxvmkfakvifiyy.supabase.co',
+  supabaseKey: 'sb_publishable_vgPCiEHCDlm2Kh6fFJ9etQ_ARLMfTkU'
 };
