@@ -321,7 +321,9 @@
   }
 
   function signUp(email, password) {
-    return client.auth.signUp({ email: email.trim(), password: password }).then(function (res) {
+    // Le lien de confirmation reçu par e-mail ramène vers cette page de l'appli.
+    var options = /^https?:$/.test(location.protocol) ? { emailRedirectTo: location.origin + location.pathname } : {};
+    return client.auth.signUp({ email: email.trim(), password: password, options: options }).then(function (res) {
       if (res.error) throw new Error(translateAuthError(res.error));
       if (!res.data.session) return { confirm: true };   // confirmation par e-mail demandée par Supabase
       onSignedIn(res.data.user);
