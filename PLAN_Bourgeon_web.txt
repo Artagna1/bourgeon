@@ -22,8 +22,12 @@ OÙ EN EST-ON ?  (à mettre à jour à chaque reprise)
                    l'appli Python ont été converties (bourgeon-donnees-
                    python.json) — l'utilisateur doit les importer dans son
                    navigateur (bouton « Données » ▸ « Importer un fichier… »).
-  Prochaine action : mise en ligne (GitHub Pages + Supabase) — voir le
-                     journal de bord du 01/10/2026.
+  EN LIGNE : https://artagna1.github.io/bourgeon/
+             (dépôt https://github.com/Artagna1/bourgeon, Supabase
+             jnvhnycxvmkfakvifiyy, table bourgeon_docs).
+  Prochaine action : l'utilisateur importe ses données sur le PC (version
+                     en ligne), crée son compte, se connecte sur le
+                     téléphone, puis désactive les inscriptions Supabase.
 
   Lancer l'appli  : double-cliquer sur index.html (aucune installation).
   Lancer les tests : double-cliquer sur tests/tests.html.
@@ -463,3 +467,13 @@ JOURNAL DE BORD
              clé anon → je remplis config.js, j'envoie sur GitHub, on active
              GitHub Pages, on règle Supabase (confirmation e-mail, URL du
              site), puis création du compte et import des données.
+
+01/10/2026 — Mise en ligne effectuée : code envoyé sur GitHub (Pages
+             activé par l'utilisateur), table + règles d'accès créées dans
+             Supabase, URL du site réglée. Vérifié : site en ligne sans
+             erreur, lecture anonyme = [] et écriture anonyme refusée (RLS),
+             faux identifiant refusé, CORS OK, fichier de données perso
+             absent du site (404). Le lien de confirmation d'e-mail ramène
+             vers l'appli (emailRedirectTo).
+             Mettre à jour le site : modifier les fichiers, augmenter VERSION
+             dans sw.js, puis git commit + git push (en ligne en 1-2 min).
