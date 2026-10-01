@@ -16,16 +16,24 @@
   var dragId = null;
   var editingId = null;
   var marker = null;      // trait qui montre où la tâche sera lâchée
+  var mobile = false;
+  var selectedId = null;  // mobile : tâche touchée, en attente d'un cadran
 
   function data() { return B.store.get(); }
 
   function render(container, tabId, ctx) {
     editingId = null;
+    selectedId = null;
+    mobile = !!ctx.mobile;
     els = {
-      root: h('div', { class: 'eis' }),
+      root: h('div', { class: 'eis' + (mobile ? ' mobile' : '') }),
       toggle: h('button', { type: 'button', class: 'switch-line', onclick: function () { hideDone = !hideDone; draw(); } })
     };
-    ctx.actions.appendChild(els.toggle);
+    if (mobile) {
+      els.corner = ctx.corner;
+    } else {
+      ctx.actions.appendChild(els.toggle);
+    }
     container.appendChild(els.root);
     marker = h('div', { class: 'eis-marker', 'aria-hidden': 'true' });
     draw();
@@ -38,6 +46,7 @@
   /* Redessine tout ; focusSelector permet de garder le focus clavier. */
   function draw(focusSelector) {
     if (!els) return;
+    if (mobile) { drawMobile(); return; }
     B.ui.clear(els.toggle);
     els.toggle.setAttribute('aria-pressed', hideDone ? 'true' : 'false');
     B.ui.append(els.toggle, [h('span', { class: 'switch', 'aria-hidden': 'true' }, h('span', { class: 'switch-knob' })), 'Masquer les terminées']);
@@ -78,6 +87,95 @@
     );
     enableDrop(section, listEl, zoneId);
     return section;
+  }
+
+  /* ---------- Mobile : toucher une tâche, puis un cadran ---------- */
+
+  function drawMobile() {
+    B.ui.clear(els.corner);
+    els.corner.appendChild(B.ui.cornerButton(hideDone ? 'eye' : 'eye-slash', hideDone ? 'Afficher les terminées' : 'Masquer les terminées',
+      function () { hideDone = !hideDone; draw(); }, hideDone));
+
+    var selected = selectedId && EL.find(data(), selectedId);
+    if (!selected) selectedId = null;
+    B.ui.clear(els.root);
+
+    els.root.appendChild(h('div', { class: 'meis-axes', 'aria-hidden': 'true' }, h('span', null, 'Urgent'), h('span', null, 'Pas urgent')));
+    els.root.appendChild(h('div', { class: 'meis-matrix' }, [1, 2, 3, 4].map(function (z) {
+      var zone = EL.ZONES[z];
+      var list = visibleTasks(z);
+      var target = selected && selected.zone !== z;
+      return h('section', {
+        class: 'meis-zone ' + zone.tone + (target ? ' target' : ''), 'aria-label': zone.name + ' — ' + zone.title,
+        onclick: function (e) {
+          if (e.target.closest('.meis-line')) return;
+          if (selected) moveSelected(z);
+        }
+      },
+        h('header', { class: 'meis-head' },
+          h('span', { class: 'eis-num num' }, h('span', null, String(z))),
+          h('span', { class: 'meis-name' }, zone.name),
+          h('span', { class: 'meis-count num' }, String(list.length))),
+        list.length ? list.map(function (t) { return mobileLine(t, 'meis-line'); }) : h('p', { class: 'meis-empty' }, zone.hint),
+        target ? h('p', { class: 'meis-drop' }, 'Toucher pour déposer') : null);
+    })));
+
+    var inbox = visibleTasks(0);
+    var text = h('input', { class: 'input', type: 'text', maxlength: '100', placeholder: 'Nouvelle tâche…', 'aria-label': 'Nouvelle tâche' });
+    var error = B.ui.formError();
+    els.root.appendChild(h('section', {
+      class: 'card meis-inbox' + (selected && selected.zone !== 0 ? ' target' : ''),
+      onclick: function (e) {
+        if (e.target.closest('.meis-line, form')) return;
+        if (selected && selected.zone !== 0) moveSelected(0);
+      }
+    },
+      h('div', { class: 'card-head' },
+        h('h2', { class: 'section-label' }, 'Non triées · ' + inbox.length),
+        h('span', { class: 'card-hint' }, selected ? 'touchez un cadran' : 'touchez, puis un cadran')),
+      h('div', { class: 'meis-inbox-list' }, inbox.map(function (t) { return mobileLine(t, 'meis-line boxed'); })),
+      h('form', {
+        class: 'meis-add', novalidate: true,
+        onsubmit: function (e) {
+          e.preventDefault();
+          var r = B.store.update(function (d) { return EL.addTask(d, text.value, ''); });
+          if (!r.ok) { B.ui.setError(error, r.error); return; }
+          draw();
+          var again = els.root.querySelector('.meis-add input');
+          if (again) again.focus();
+        }
+      }, text, h('button', { type: 'submit', class: 'gem-btn', 'aria-label': 'Ajouter la tâche' }, icon('plus', null, 'ph-bold'))),
+      error));
+
+    // Barre d'actions de la tâche touchée
+    if (selected) {
+      els.root.appendChild(h('div', { class: 'meis-bar', role: 'toolbar', 'aria-label': 'Tâche sélectionnée' },
+        h('span', { class: 'meis-bar-text' }, selected.text),
+        h('button', { type: 'button', class: 'icon-action', title: selected.done ? 'Marquer non faite' : 'Marquer faite', 'aria-label': selected.done ? 'Marquer non faite' : 'Marquer faite',
+          onclick: function () { B.store.update(function (d) { EL.toggleDone(d, selected.id); }); selectedId = null; draw(); } }, icon('check', null, 'ph-bold')),
+        h('button', { type: 'button', class: 'icon-action danger', title: 'Supprimer', 'aria-label': 'Supprimer la tâche',
+          onclick: function () { B.store.update(function (d) { EL.deleteTask(d, selected.id); }); selectedId = null; draw(); } }, icon('trash')),
+        h('button', { type: 'button', class: 'icon-action', title: 'Annuler', 'aria-label': 'Annuler la sélection',
+          onclick: function () { selectedId = null; draw(); } }, icon('x'))));
+    }
+  }
+
+  function mobileLine(t, cls) {
+    return h('button', {
+      type: 'button', class: cls + (t.done ? ' done' : '') + (t.id === selectedId ? ' selected' : ''),
+      'aria-pressed': t.id === selectedId ? 'true' : 'false',
+      onclick: function () { selectedId = selectedId === t.id ? null : t.id; draw(); }
+    },
+      h('span', { class: 'meis-gem', 'aria-hidden': 'true' }),
+      h('span', { class: 'meis-text' }, t.text, t.deadline ? h('small', null, ' · ' + t.deadline) : null),
+      t.id === selectedId ? icon('hand-tap', 'meis-hand') : null);
+  }
+
+  function moveSelected(zone) {
+    var id = selectedId;
+    selectedId = null;
+    B.store.update(function (d) { EL.moveTask(d, id, zone, null); });
+    draw();
   }
 
   /* ---------- Carte de tâche ---------- */

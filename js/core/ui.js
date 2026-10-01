@@ -45,6 +45,14 @@
     return h('i', { class: (style || 'ph') + ' ph-' + name + (extraClass ? ' ' + extraClass : ''), 'aria-hidden': 'true' });
   }
 
+  /* Bouton rond en losange du coin de l'en-tête (mobile). */
+  function cornerButton(iconName, label, onclick, pressed) {
+    return h('button', {
+      type: 'button', class: 'corner-btn', title: label, 'aria-label': label, onclick: onclick,
+      'aria-pressed': pressed === undefined ? null : (pressed ? 'true' : 'false')
+    }, icon(iconName, null, 'ph-bold'));
+  }
+
   /* Séparateur décoratif : deux filets et un losange au centre. */
   function ornament(extraClass) {
     return h('div', { class: 'ornament' + (extraClass ? ' ' + extraClass : ''), 'aria-hidden': 'true' },
@@ -168,7 +176,7 @@
   }
 
   B.ui = {
-    h: h, icon: icon, ornament: ornament, append: append, clear: clear, segmented: segmented,
+    h: h, icon: icon, ornament: ornament, cornerButton: cornerButton, append: append, clear: clear, segmented: segmented,
     formError: formError, setError: setError, flashSaved: flashSaved,
     openDialog: openDialog, confirm: confirm, showError: showError, plural: plural
   };

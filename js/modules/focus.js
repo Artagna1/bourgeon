@@ -151,6 +151,11 @@
     els = { root: h('div', { class: 'focus' }) };
     container.appendChild(els.root);
     ctx.actions.appendChild(alertsToggle());
+    if (ctx.mobile) {
+      ctx.corner.appendChild(tabId === 'history'
+        ? B.ui.cornerButton('hourglass-high', 'Session', function () { B.app.showSection('focus', 'session'); })
+        : B.ui.cornerButton('clock-counter-clockwise', 'Historique', function () { B.app.showSection('focus', 'history'); }));
+    }
     if (tabId === 'history') renderHistory();
     else renderSession();
   }
@@ -402,15 +407,17 @@
       time: h('span', { class: 'dial-time num', role: 'timer', 'aria-live': 'off' }),
       sub: h('span', { class: 'dial-sub' }),
       strip: h('div', { class: 'strip-wrap' }),
+      meta: h('div', { class: 'dial-meta' }),
       pauseBtn: h('button', { type: 'button', class: 'btn btn-primary dial-main', onclick: function () { togglePause(); update(Date.now()); } }),
-      stopBtn: h('button', { type: 'button', class: 'btn btn-danger dial-main', onclick: function () { finish(Date.now()); } },
-        icon('stop', null, 'ph'), 'Arrêter')
+      stopBtn: h('button', { type: 'button', class: 'btn btn-danger dial-main dial-stop', 'aria-label': 'Arrêter la session', onclick: function () { finish(Date.now()); } },
+        icon('stop', null, 'ph-fill'), h('span', { class: 'dial-btn-label' }, 'Arrêter'))
     };
     refs.ring = dialRing(h('div', { class: 'dial-center' }, refs.phase, refs.time, refs.sub));
     els.dial.appendChild(h('div', { class: 'dial-top' }, refs.target, refs.cycle));
     els.dial.appendChild(refs.ring);
     els.dial.appendChild(refs.strip);
-    els.dial.appendChild(h('div', { class: 'dial-actions' }, refs.pauseBtn, refs.stopBtn));
+    els.dial.appendChild(refs.meta);
+    els.dial.appendChild(h('div', { class: 'dial-actions' }, refs.stopBtn, refs.pauseBtn));
 
     function update(now) {
       var a2 = active();
@@ -440,6 +447,18 @@
 
       B.ui.clear(refs.strip);
       if (isPomo) refs.strip.appendChild(phaseStrip(a2, info));
+
+      // « 50 min faites aujourd'hui » · « fin à 21:58 »
+      var counted = isPomo ? info.pomodoro.workDone : a2.mode === 'sablier' ? Math.min(FL.elapsedSec(a2, now), a2.plannedSec) : FL.elapsedSec(a2, now);
+      var todayDone = data().focus.sessions.filter(function (x) { return x.day === D.today(); })
+        .reduce(function (n, x) { return n + x.duration; }, 0) + (D.toStr(new Date(a2.startedAt)) === D.today() ? counted : 0);
+      var endText = '';
+      if (!paused && a2.mode !== 'chrono') {
+        var end = new Date(now + info.seconds * 1000);
+        endText = (isPomo ? (info.phase === 'work' ? 'pause à ' : 'reprise à ') : 'fin à ') + D.pad(end.getHours()) + ':' + D.pad(end.getMinutes());
+      }
+      B.ui.clear(refs.meta);
+      B.ui.append(refs.meta, [h('span', null, D.formatDuration(todayDone) + ' faites aujourd\'hui'), h('span', null, endText)]);
 
       B.ui.clear(refs.pauseBtn);
       refs.pauseBtn.className = 'btn dial-main ' + (paused ? 'btn-resume' : 'btn-primary');

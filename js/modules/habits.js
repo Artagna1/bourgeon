@@ -23,7 +23,88 @@
   function render(container, tabId, ctx) {
     rows = {};
     if (tabId === 'global') renderGlobal(container);
+    else if (tabId === 'today') renderToday(container, ctx);
     else renderMonth(container, ctx);
+    if (ctx.mobile) {
+      ctx.corner.appendChild(B.ui.cornerButton('plus', 'Nouvelle habitude', function () {
+        B.app.showSection('habits', 'month');
+        var input = document.querySelector('.habits-add .input');
+        if (input) { input.scrollIntoView({ block: 'center' }); input.focus(); }
+      }));
+    }
+  }
+
+  /* ======================================================================
+     Onglet AUJOURD'HUI (mobile) : cocher les rituels du jour d'un pouce
+     ====================================================================== */
+
+  var INITIALES = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+  function renderToday(container) {
+    els = { root: h('div', { class: 'habits-today' }) };
+    container.appendChild(els.root);
+    drawToday();
+  }
+
+  function drawToday() {
+    var d = data(), today = D.today(), m = D.monthKey(today);
+    var habits = L.habitsForMonth(d, m);
+    var doneToday = habits.filter(function (x) { return L.checksOf(d, x.id)[today]; }).length;
+    var monthPct = L.monthCompletion(d, m).pct;
+    var left = habits.length - doneToday;
+    var jour = D.JOURS[D.weekdayIndex(today)];
+    var past = [];
+    for (var k = 6; k >= 1; k--) past.push(D.addDays(today, -k));
+
+    B.ui.clear(els.root);
+    if (habits.length === 0) {
+      els.root.appendChild(h('div', { class: 'card empty-state' },
+        icon('plant', 'empty-icon'),
+        h('p', { class: 'empty-title' }, 'Aucun rituel pour le moment'),
+        h('p', { class: 'muted' }, 'Ajoute ta première habitude avec le bouton « + ».')));
+      return;
+    }
+
+    var ring = h('div', { class: 'ring small', role: 'img', 'aria-label': doneToday + ' rituels faits sur ' + habits.length },
+      h('span', { class: 'ring-ticks' }), h('span', { class: 'ring-square' }), h('span', { class: 'ring-square rot' }),
+      h('span', { class: 'ring-arc' }),
+      h('span', { class: 'ring-center' }, h('span', { class: 'ring-value num' }, String(doneToday), h('span', { class: 'ring-pct' }, '/' + habits.length))));
+    ring.style.setProperty('--p', Math.round(doneToday / habits.length * 100));
+
+    els.root.appendChild(h('section', { class: 'today-summary' },
+      ring,
+      h('div', { class: 'today-summary-text' },
+        h('p', { class: 'today-summary-title' }, left === 0 ? 'Tous les rituels sont faits' : 'Encore ' + B.ui.plural(left, 'rituel', 'rituels')),
+        h('p', { class: 'muted' }, 'pour ce ' + jour + '.'),
+        h('p', { class: 'muted' }, 'Mois en cours : ', h('strong', { class: 'lvl-' + L.level(monthPct) }, monthPct + ' %')))
+    ));
+
+    els.root.appendChild(h('div', { class: 'today-days', 'aria-hidden': 'true' },
+      past.map(function (date) { return h('span', null, INITIALES[D.weekdayIndex(date)]); }), h('span', { class: 'today-days-gap' })));
+
+    els.root.appendChild(h('div', { class: 'today-habits' }, habits.map(function (x) {
+      var checks = L.checksOf(d, x.id);
+      var done = !!checks[today];
+      var streak = L.currentStreak(checks, today);
+      var pct = L.monthStats(d, x, m).pct;
+      return h('div', { class: 'today-habit' + (done ? ' done' : '') },
+        h('div', { class: 'today-habit-text' },
+          h('span', { class: 'today-habit-name' }, x.name),
+          h('span', { class: 'today-habit-meta' },
+            streak > 0 ? [icon('fire', 'today-flame', 'ph-fill'), B.ui.plural(streak, 'j', 'j') + ' de série'] : 'Pas de série',
+            ' · ', h('span', { class: 'lvl-' + L.level(pct) }, pct + ' %'))),
+        h('div', { class: 'today-habit-past', 'aria-hidden': 'true' }, past.map(function (date) {
+          return h('span', { class: 'mini-gem' + (checks[date] ? ' on' : '') });
+        })),
+        h('button', {
+          type: 'button', class: 'big-check' + (done ? ' on' : ''), role: 'checkbox', 'aria-checked': done ? 'true' : 'false',
+          'aria-label': (done ? 'Décocher ' : 'Cocher ') + x.name + ' pour aujourd\'hui',
+          onclick: function () {
+            B.store.update(function (dd) { L.toggleCheck(dd, x.id, today, today); });
+            drawToday();
+          }
+        }, done ? icon('check', null, 'ph-bold') : null));
+    })));
   }
 
   /* ======================================================================

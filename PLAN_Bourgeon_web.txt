@@ -500,3 +500,24 @@ JOURNAL DE BORD
              fenêtre Rythmes, un nouveau type prenait les paliers par défaut.
              Vérifié : 63 tests + simulation synchro + 30 contrôles de clics
              sur les 7 modules + captures clair / sombre / mobile.
+
+01/10/2026 — Affichage mobile d'après la maquette « Bourgeon Mobile »
+             (même projet claude.ai/design). Sous 760 px : barre latérale
+             remplacée par une barre d'onglets en bas (Journal, Habitudes,
+             Focus en losange doré avec le minuteur, Révisions, « Plus »
+             qui ouvre une feuille : Objectifs, Eisenhower, Sport, Données,
+             thème) ; bouton losange en haut à droite propre à chaque module.
+             Journal : bande de la semaine + bouton Enregistrer/Enregistré.
+             Habitudes : nouvel onglet « Aujourd'hui » (cadran x/n, 6 jours
+             passés, gros losange à cocher). Focus : sans sous-onglets (coin
+             = Historique), ligne « faites aujourd'hui / fin à », Arrêter en
+             losange. Objectifs : filtres par statut, cartes dépliables
+             (Atteint, Reporter, note…), formulaire derrière « + Quête ».
+             Eisenhower : toucher une tâche puis un cadran (pas de glisser
+             au doigt), barre d'actions de la tâche choisie. Révisions :
+             « N concepts à revoir, dont M en retard », losange à droite,
+             glisser vers la droite pour valider. Sport : VMA en grand,
+             prédictions 2×2, allures par zone, temps de passage repliés.
+             Grand écran inchangé. Vérifié : 64 tests + simulation synchro
+             + 30 contrôles bureau + 29 contrôles mobile + captures
+             clair / sombre.

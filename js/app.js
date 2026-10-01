@@ -30,13 +30,16 @@
   var SECTIONS = [
     { id: 'journal', label: 'Journal', icon: 'scroll', kicker: 'Chronique des jours', step: 2 },
     { id: 'habits', label: 'Habitudes', icon: 'plant', kicker: 'Livre des rituels', step: 4,
-      tabs: [{ id: 'month', label: 'Mois' }, { id: 'global', label: 'Global' }] },
+      tabs: [{ id: 'month', label: 'Mois' }, { id: 'global', label: 'Global' }],
+      mobileTabs: [{ id: 'today', label: 'Aujourd\'hui' }, { id: 'month', label: 'Mois' }, { id: 'global', label: 'Global' }] },
     { id: 'focus', label: 'Focus', icon: 'hourglass-high', kicker: 'Veille de concentration', step: 6,
-      tabs: [{ id: 'session', label: 'Session' }, { id: 'history', label: 'Historique' }] },
+      tabs: [{ id: 'session', label: 'Session' }, { id: 'history', label: 'Historique' }],
+      mobileCornerTabs: true },   // mobile : on passe d'un onglet à l'autre par le bouton du coin
     { id: 'goals', label: 'Objectifs', icon: 'sword', kicker: 'Quêtes en cours', step: 3 },
     { id: 'eisenhower', label: 'Eisenhower', icon: 'scales', kicker: 'Table du conseil', step: 7 },
     { id: 'revisions', label: 'Révisions', icon: 'book-open-text', kicker: 'Mémoire des arcanes', step: 5,
-      tabs: [{ id: 'tree', label: 'Arborescence' }, { id: 'today', label: 'Aujourd\'hui' }] },
+      tabs: [{ id: 'tree', label: 'Arborescence' }, { id: 'today', label: 'Aujourd\'hui' }],
+      mobileTabs: [{ id: 'today', label: 'Aujourd\'hui' }, { id: 'tree', label: 'Arborescence' }] },
     { id: 'sport', label: 'Sport', icon: 'heartbeat', kicker: 'Carnet du coureur', step: 8,
       tabs: [{ id: 'planning', label: 'Planning' }, { id: 'vma', label: 'Course (VMA)' }] }
   ];
@@ -49,6 +52,18 @@
     '<path d="M0 0 m2 0 a2 2 0 1 0 -4 0 a6 6 0 1 0 10 0 a10 10 0 1 0 -18 0 a14 14 0 1 0 25 0"/></svg>';
 
   var THEME_KEY = 'bourgeon.theme';
+
+  /*
+   * Mobile (écran étroit) : barre d'onglets en bas, Focus en losange au
+   * centre, « Plus » pour Objectifs, Eisenhower et Sport. Certains modules
+   * proposent alors une mise en page et des sous-onglets propres au mobile.
+   */
+  var MQ = window.matchMedia ? window.matchMedia('(max-width: 760px)') : { matches: false };
+  function isMobile() { return !!MQ.matches; }
+  var TAB_MAIN = ['journal', 'habits', 'focus', 'revisions'];
+  var TAB_MORE = ['goals', 'eisenhower', 'sport'];
+
+  function tabsOf(section) { return (isMobile() && section.mobileTabs) || section.tabs; }
 
   var state = {
     section: null,   // identifiant de la section affichée
@@ -98,6 +113,7 @@
     els.title = h('h1', { class: 'page-title' });
     els.tabs = h('div', { class: 'page-tabs' });
     els.actions = h('div', { class: 'page-actions' });
+    els.corner = h('div', { class: 'page-corner' });
     els.content = h('div', { class: 'page-content' });
 
     root.appendChild(h('div', { class: 'app' },
@@ -110,12 +126,66 @@
         els.themeBtn
       ),
       h('main', { class: 'main' },
-        h('header', { class: 'page-header' }, h('div', { class: 'page-titles' }, els.kicker, els.title), els.tabs, els.actions),
+        h('header', { class: 'page-header' }, h('div', { class: 'page-titles' }, els.kicker, els.title), els.corner, els.tabs, els.actions),
         els.content
-      )
+      ),
+      buildTabbar()
     ));
 
     applyTheme(currentTheme());
+  }
+
+  /* --- Barre d'onglets du mobile --- */
+
+  function tabItem(id, extraClass) {
+    var s = findSection(id);
+    return h('button', {
+      type: 'button', class: 'tab-item' + (extraClass ? ' ' + extraClass : ''), 'data-section': id,
+      onclick: function () { showSection(id); }
+    },
+      id === 'focus' ? h('span', { class: 'tab-gem' }, icon(s.icon, 'tab-icon', 'ph-fill')) : icon(s.icon, 'tab-icon'),
+      h('span', { class: 'tab-label' }, s.label),
+      h('span', { class: 'count tab-count', hidden: true }));
+  }
+
+  function buildTabbar() {
+    els.moreBtn = h('button', { type: 'button', class: 'tab-item tab-more', onclick: openMore, 'aria-haspopup': 'dialog' });
+    els.tabbar = h('nav', { class: 'tabbar', 'aria-label': 'Sections' },
+      tabItem('journal'), tabItem('habits'), tabItem('focus', 'tab-focus'), tabItem('revisions'), els.moreBtn);
+    drawMoreBtn();
+    return els.tabbar;
+  }
+
+  /* Le dernier emplacement prend l'icône du module ouvert parmi Objectifs, Eisenhower et Sport. */
+  function drawMoreBtn() {
+    var current = TAB_MORE.indexOf(state.section) >= 0 ? findSection(state.section) : null;
+    B.ui.clear(els.moreBtn);
+    B.ui.append(els.moreBtn, current
+      ? [icon(current.icon, 'tab-icon', 'ph-fill'), h('span', { class: 'tab-label' }, current.label)]
+      : [icon('dots-three-outline', 'tab-icon'), h('span', { class: 'tab-label' }, 'Plus')]);
+    els.moreBtn.classList.toggle('active', !!current);
+  }
+
+  /* Feuille « Plus » : les autres modules, les données et le thème. */
+  function openMore() {
+    var dlg;
+    function go(id) { dlg.finish(''); showSection(id); }
+    var content = h('div', { class: 'more-sheet' },
+      h('h2', { class: 'section-label' }, 'Plus'),
+      TAB_MORE.map(function (id) {
+        var s = findSection(id);
+        return h('button', { type: 'button', class: 'more-item' + (state.section === id ? ' active' : ''), onclick: function () { go(id); } },
+          icon(s.icon, 'more-icon'), h('span', null, s.label), h('span', { class: 'more-kicker' }, s.kicker));
+      }),
+      B.ui.ornament(),
+      h('button', { type: 'button', class: 'more-item', onclick: function () { dlg.finish(''); B.backup.open(); } },
+        icon('database', 'more-icon'), h('span', null, 'Données et synchronisation')),
+      h('button', { type: 'button', class: 'more-item', onclick: function () { dlg.finish(''); applyTheme(currentTheme() === 'dark' ? 'light' : 'dark'); } },
+        icon(currentTheme() === 'dark' ? 'sun' : 'moon-stars', 'more-icon'), h('span', null, currentTheme() === 'dark' ? 'Mode clair' : 'Mode sombre'))
+    );
+    dlg = B.ui.openDialog(content);
+    dlg.classList.add('sheet');
+    dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.finish(''); });   // toucher le fond ferme
   }
 
   function brandBlock() {
@@ -132,9 +202,20 @@
     if (previous && previous.leave) previous.leave();
 
     state.section = id;
-    if (section.tabs) {
-      state.tabs[id] = tabId || state.tabs[id] || section.tabs[0].id;
+    var tabs = tabsOf(section);
+    if (tabs) {
+      var wanted = tabId || state.tabs[id];
+      if (!wanted || !tabs.some(function (t) { return t.id === wanted; })) wanted = tabs[0].id;
+      state.tabs[id] = wanted;
     }
+
+    // Barre d'onglets du mobile
+    Array.prototype.forEach.call(els.tabbar.querySelectorAll('.tab-item[data-section]'), function (btn) {
+      var active = btn.getAttribute('data-section') === id;
+      btn.classList.toggle('active', active);
+      if (active) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
+    });
+    drawMoreBtn();
 
     // Entrée active dans la barre latérale
     Array.prototype.forEach.call(els.nav.children, function (btn) {
@@ -152,8 +233,8 @@
     els.title.textContent = section.label;
     els.content.setAttribute('data-section', id);
     B.ui.clear(els.tabs);
-    if (section.tabs) {
-      els.tabs.appendChild(B.ui.segmented(section.tabs, state.tabs[id], function (t) {
+    if (tabs && !(isMobile() && section.mobileCornerTabs)) {
+      els.tabs.appendChild(B.ui.segmented(tabs, state.tabs[id], function (t) {
         showSection(id, t);
       }, 'Sous-onglets ' + section.label));
     }
@@ -162,9 +243,10 @@
     // Le module peut placer des boutons à droite du titre dans ctx.actions.
     B.ui.clear(els.content);
     B.ui.clear(els.actions);
+    B.ui.clear(els.corner);
     var mod = B.modules[id];
     if (mod && mod.render) {
-      mod.render(els.content, state.tabs[id], { actions: els.actions });
+      mod.render(els.content, state.tabs[id], { actions: els.actions, corner: els.corner, mobile: isMobile() });
     } else {
       renderPlaceholder(els.content, section);
     }
@@ -175,6 +257,20 @@
   /* Compteurs de la barre latérale (ex. révisions dues), recalculés après chaque modification. */
   function refreshBadges() {
     if (!els.nav) return;
+    Array.prototype.forEach.call(els.tabbar.querySelectorAll('.tab-item[data-section]'), function (btn) {
+      var id = btn.getAttribute('data-section');
+      var mod = B.modules[id];
+      var b = mod && mod.badge ? mod.badge() : null;
+      if (id === 'focus') {
+        btn.querySelector('.tab-label').textContent = b ? b.text : 'Focus';
+        btn.classList.toggle('live', !!b);
+        btn.classList.toggle('paused', !!(b && /paused/.test(b.tone)));
+        return;
+      }
+      var count = btn.querySelector('.tab-count');
+      count.hidden = !b;
+      if (b) { count.textContent = b.text; count.className = 'count tab-count' + (b.tone ? ' ' + b.tone : ''); }
+    });
     Array.prototype.forEach.call(els.nav.children, function (btn) {
       var mod = B.modules[btn.getAttribute('data-section')];
       var count = btn.querySelector('.count');
@@ -251,6 +347,8 @@
     });
 
     buildShell(root);
+    // Passage écran large ↔ écran étroit : on redessine avec la bonne mise en page.
+    if (MQ.addEventListener) MQ.addEventListener('change', function () { if (state.section) showSection(state.section); });
     Object.keys(B.modules).forEach(function (id) { if (B.modules[id].init) B.modules[id].init(); });
     showSection('journal');
 
@@ -319,7 +417,7 @@
   }
 
   B.app = {
-    start: start, showSection: showSection, closeSection: closeSection, refresh: refresh,
+    start: start, showSection: showSection, closeSection: closeSection, refresh: refresh, isMobile: isMobile,
     flushCurrent: flushCurrent, refreshBadges: refreshBadges, SECTIONS: SECTIONS
   };
 

@@ -17,10 +17,16 @@
 
   function data() { return B.store.get(); }
 
-  function render(container, tabId) {
-    els = { root: h('div', { class: 'sport' }), days: [] };
+  function render(container, tabId, ctx) {
+    var mobile = !!(ctx && ctx.mobile);
+    els = { root: h('div', { class: 'sport' + (mobile ? ' mobile' : '') }), days: [], mobile: mobile };
     container.appendChild(els.root);
-    if (tabId === 'vma') renderVma(); else renderPlanning();
+    if (tabId === 'vma') {
+      if (mobile) ctx.corner.appendChild(B.ui.cornerButton('flask', 'Test VMA', function () { editVma(true); }));
+      renderVma();
+    } else {
+      renderPlanning();
+    }
   }
 
   /* ---------- Onglet PLANNING ---------- */
@@ -71,6 +77,7 @@
 
   function renderVma() {
     var vma = data().sport.vma;
+    if (els.mobile) { renderVmaMobile(vma); return; }
 
     // VMA + prédictions
     var preds = SL.predictions(vma);
@@ -133,6 +140,49 @@
         }))
       ))
     ));
+  }
+
+  /* Mobile : VMA en grand, prédictions en 2×2, zones en liste, temps de passage repliés. */
+  function renderVmaMobile(vma) {
+    els.root.appendChild(h('section', { class: 'card sport-mvma' },
+      h('div', { class: 'sport-mvma-main' },
+        h('h2', { class: 'section-label' }, 'Ma VMA'),
+        h('div', { class: 'sport-vma-value' },
+          h('span', { class: 'sport-vma-number num' }, SL.formatKmh(vma)),
+          h('span', { class: 'sport-vma-unit' }, 'km/h'))),
+      h('button', { type: 'button', class: 'sport-mvma-edit', onclick: function () { editVma(false); } },
+        h('span', { class: 'gem-btn', 'aria-hidden': 'true' }, icon('pencil-simple', null, 'ph-bold')),
+        h('span', null, 'Modifier'))
+    ));
+
+    els.root.appendChild(h('div', { class: 'sport-mpreds' }, SL.predictions(vma).map(function (p) {
+      return h('div', { class: 'sport-mpred', title: SL.formatKmh(p.speed) + ' km/h' },
+        h('span', { class: 'sport-pred-label' }, p.label),
+        h('span', { class: 'sport-pred-time num' }, p.text));
+    })));
+
+    els.root.appendChild(h('section', { class: 'sport-mzones' },
+      h('h2', { class: 'section-label' }, 'Allure par zone'),
+      SL.zones(vma).map(function (z, i) {
+        return h('div', { class: 'sport-mzone', title: z.usage + ' · ' + z.speedText + ' km/h' },
+          h('span', { class: 'zone-dot z' + i, 'aria-hidden': 'true' }),
+          h('span', { class: 'sport-mzone-name' }, z.name),
+          h('span', { class: 'sport-mzone-range num' }, z.range),
+          h('span', { class: 'sport-mzone-pace num z' + i, title: z.paceText }, z.paceText.replace('/km', '')));
+      })));
+
+    els.root.appendChild(h('details', { class: 'sport-mpass' },
+      h('summary', null, h('span', null, 'Temps de passage'), icon('caret-right', 'sport-mpass-caret', 'ph-bold')),
+      h('div', { class: 'table-scroll' }, h('table', { class: 'table sport-grid' },
+        h('thead', null, h('tr', null,
+          h('th', { scope: 'col' }, 'Distance'),
+          SL.PERCENTS.map(function (p) { return h('th', { scope: 'col', class: 'num' + (p === 100 ? ' ref' : '') }, p + ' %'); }))),
+        h('tbody', null, SL.paceTable(vma).map(function (row) {
+          return h('tr', null,
+            h('th', { scope: 'row', class: 'num' }, row.label),
+            row.times.map(function (t, i) { return h('td', { class: 'num' + (SL.PERCENTS[i] === 100 ? ' ref' : '') }, t); }));
+        }))
+      ))));
   }
 
   /* Fenêtre de saisie de la VMA (« Modifier » et « Test VMA »). */

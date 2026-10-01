@@ -27,7 +27,13 @@
     shownDay = day();
     els = { root: h('div', { class: 'revisions' }) };
     container.appendChild(els.root);
-    ctx.actions.appendChild(h('button', { type: 'button', class: 'btn', onclick: openStepTypes }, icon('sliders-horizontal'), 'Rythmes'));
+    if (ctx.mobile) {
+      ctx.corner.appendChild(view === 'today'
+        ? B.ui.cornerButton('tree-structure', 'Arborescence', function () { B.app.showSection('revisions', 'tree'); })
+        : B.ui.cornerButton('sliders-horizontal', 'Rythmes', openStepTypes));
+    } else {
+      ctx.actions.appendChild(h('button', { type: 'button', class: 'btn', onclick: openStepTypes }, icon('sliders-horizontal'), 'Rythmes'));
+    }
     if (view === 'tree') {
       ctx.actions.appendChild(h('button', {
         type: 'button', class: 'btn btn-primary',
@@ -448,9 +454,11 @@
 
     els.root.appendChild(h('div', { class: 'rv-today-head' },
       h('h2', { class: 'rv-today-title' }, 'Journée du ' + dateText),
-      items.length ? h('p', { class: 'muted small' },
-        B.ui.plural(items.length, 'révision', 'révisions'),
-        late ? h('span', { class: 'rv-late-count' }, ' · ' + late + ' en retard') : null) : null
+      items.length ? h('p', { class: 'rv-today-count' },
+        h('strong', { class: 'num' }, String(items.length)),
+        h('span', null, (items.length >= 2 ? ' concepts à revoir' : ' concept à revoir') +
+          (late ? ', dont ' : '')),
+        late ? h('span', { class: 'rv-late-count' }, late + ' en retard') : null) : null
     ));
 
     if (items.length === 0) {
@@ -466,7 +474,7 @@
       var st = item.state;
       var style = RL.lateStyle(st.lateDays);
       var stepLabel = st.label + (st.inMaintenance ? ' · entretien' : '');
-      list.appendChild(h('article', { class: 'rv-today-item' + (st.late ? ' late' : '') },
+      var row = h('article', { class: 'rv-today-item' + (st.late ? ' late' : '') },
         h('button', {
           type: 'button', class: 'rv-check' + (st.late ? ' late' : ''), role: 'checkbox', 'aria-checked': 'false',
           'aria-label': 'Valider ' + stepLabel + ' pour ' + item.concept.name,
@@ -486,10 +494,31 @@
           h('p', { class: 'rv-today-meta num' },
             stepLabel + ' · échéance ' + D.formatShort(st.due),
             st.late ? ' · ' + st.lateDays + ' j de retard' : '')
-        )
-      ));
+        ),
+        h('span', { class: 'rv-swipe-hint', 'aria-hidden': 'true' }, '→ Valider')
+      );
+      enableSwipe(row, function () { row.querySelector('.rv-check').click(); });
+      list.appendChild(row);
     });
     els.root.appendChild(list);
+  }
+
+  /* Glisser une ligne vers la droite (au doigt) valide la révision. */
+  function enableSwipe(row, onValidate) {
+    var x0 = null, y0 = 0, dx = 0;
+    row.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; }, { passive: true });
+    row.addEventListener('touchmove', function (e) {
+      if (x0 === null) return;
+      dx = e.touches[0].clientX - x0;
+      if (Math.abs(e.touches[0].clientY - y0) > 30 && Math.abs(dx) < 30) { x0 = null; row.style.transform = ''; return; }   // défilement vertical
+      if (dx > 0) { row.style.transform = 'translateX(' + Math.min(dx, 140) + 'px)'; row.classList.toggle('swiping', dx > 30); }
+    }, { passive: true });
+    row.addEventListener('touchend', function () {
+      if (x0 === null) return;
+      x0 = null;
+      row.classList.remove('swiping');
+      if (dx > 100) onValidate(); else row.style.transform = '';
+    });
   }
 
   /* Compteur de la barre latérale : révisions dues (orange s'il y a du retard). */

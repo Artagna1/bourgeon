@@ -75,6 +75,15 @@
     if (g) g.note = String(raw == null ? '' : raw).trim();
   }
 
+  /* Reporter : nouvelle échéance (date valide entre 2000 et 2100). */
+  function setDeadline(data, id, raw) {
+    var date = B.validate.date(raw);
+    if (!date.ok) return date;
+    var g = findGoal(data, id);
+    if (g) g.deadline = date.value;
+    return { ok: true };
+  }
+
   function removeGoal(data, id) {
     data.goals.items = data.goals.items.filter(function (g) { return g.id !== id; });
   }
@@ -82,9 +91,12 @@
   /* ================= Affichage ================= */
 
   var els = null;
+  var filter = 'active';   // mobile : statut affiché
+  var opened = {};         // mobile : cartes dépliées
 
   function render(container, tabId, ctx) {
     els = {
+      mobile: ctx.mobile,
       stats: h('div', { class: 'goals-stats', 'aria-live': 'polite' }),
       name: h('input', {
         class: 'input goals-name', type: 'text', maxlength: '100',
@@ -108,6 +120,22 @@
       els.error
     );
 
+    if (ctx.mobile) {
+      // Mobile : filtres par statut, formulaire replié derrière « + Quête »
+      els.filters = h('div', { class: 'goals-filters' });
+      form.classList.add('collapsed-form');
+      els.form = form;
+      container.appendChild(h('div', { class: 'goals mobile' }, form, els.filters, els.list,
+        h('button', {
+          type: 'button', class: 'btn btn-primary fab',
+          onclick: function () {
+            form.classList.toggle('collapsed-form');
+            if (!form.classList.contains('collapsed-form')) { window.scrollTo({ top: 0, behavior: 'smooth' }); els.name.focus(); }
+          }
+        }, icon('plus', null, 'ph-bold'), 'Quête')));
+      drawList();
+      return;
+    }
     container.appendChild(h('div', { class: 'goals' }, form, B.ui.ornament(), els.list));
     drawList();
   }
@@ -123,8 +151,9 @@
     B.ui.setError(els.error, '');
     els.name.value = '';
     els.date.value = D.today();
+    if (els.mobile) { filter = 'active'; els.form.classList.add('collapsed-form'); }
     drawList();
-    els.name.focus();
+    if (!els.mobile) els.name.focus();
   }
 
   /* « 4 en cours · 1 atteint · 1 abandonné » dans l'en-tête */
@@ -149,12 +178,90 @@
       els.list.appendChild(h('p', { class: 'muted goals-empty' }, 'Aucun objectif pour le moment.'));
       return;
     }
-    goals.forEach(function (g) { els.list.appendChild(goalCard(g, today)); });
+    if (els.mobile) {
+      drawFilters(goals);
+      var shown = goals.filter(function (g) { return g.status === filter; });
+      if (shown.length === 0) els.list.appendChild(h('p', { class: 'muted goals-empty' }, 'Aucun objectif dans cette catégorie.'));
+      shown.forEach(function (g) { els.list.appendChild(mobileCard(g, today)); });
+    } else {
+      goals.forEach(function (g) { els.list.appendChild(goalCard(g, today)); });
+    }
 
     if (focusSelector) {
       var target = els.list.querySelector(focusSelector);
       if (target) target.focus();
     }
+  }
+
+  /* Mobile : filtres « En cours 4 · Atteints 1 · Abandonnés 1 » */
+  function drawFilters(goals) {
+    var count = { active: 0, done: 0, abandoned: 0 };
+    goals.forEach(function (g) { count[g.status] = (count[g.status] || 0) + 1; });
+    B.ui.clear(els.filters);
+    els.filters.appendChild(B.ui.segmented([
+      { id: 'active', label: 'En cours ' + count.active },
+      { id: 'done', label: 'Atteints ' + count.done },
+      { id: 'abandoned', label: 'Abandonnés ' + count.abandoned }
+    ], filter, function (v) { filter = v; drawList(); }, 'Filtrer par statut'));
+  }
+
+  /* « 27 sept. · 4 j de retard », « 12 oct. · dans 11 j » */
+  function shortDeadline(g, today) {
+    var d = D.parse(g.deadline);
+    var txt = d.getDate() + ' ' + D.MOIS_COURTS[d.getMonth()] + (g.deadline.slice(0, 4) !== today.slice(0, 4) ? ' ' + d.getFullYear() : '');
+    if (g.status !== 'active') return txt;
+    var n = D.diffDays(today, g.deadline);
+    return txt + ' · ' + (n > 0 ? 'dans ' + n + ' j' : n === 0 ? 'aujourd\'hui' : -n + ' j de retard');
+  }
+
+  /* Carte mobile : repliée (nom + échéance), dépliée au toucher (actions, note). */
+  function mobileCard(g, today) {
+    var info = deadlineInfo(g, today);
+    var state = info.overdue ? 'overdue' : g.status;
+    var open = opened[g.id] !== undefined ? opened[g.id] : info.overdue;
+    var dateInput = h('input', {
+      type: 'date', class: 'visually-hidden', value: g.deadline, min: B.validate.MIN_DATE, max: B.validate.MAX_DATE,
+      'aria-label': 'Nouvelle échéance pour ' + g.name,
+      onchange: function () {
+        var r = B.store.update(function (data) { return setDeadline(data, g.id, dateInput.value); });
+        if (!r.ok) B.ui.showError(new Error(r.error));
+        drawList();
+      }
+    });
+    var note = h('input', { class: 'goal-note', type: 'text', value: g.note, placeholder: 'Ajouter une note…', 'aria-label': 'Note pour ' + g.name });
+    note.addEventListener('keydown', function (e) { if (e.key === 'Enter') note.blur(); });
+    note.addEventListener('blur', function () {
+      B.store.update(function (data) { setNote(data, g.id, note.value); });
+    });
+    function setStatusTo(st) { B.store.update(function (data) { setStatus(data, g.id, st); }); drawList(); }
+
+    return h('article', { class: 'card goal mgoal goal-' + state + (open ? ' open' : ''), 'data-goal': g.id },
+      h('button', {
+        type: 'button', class: 'mgoal-head', 'aria-expanded': open ? 'true' : 'false',
+        onclick: function () { opened[g.id] = !open; drawList(); }
+      },
+        h('span', { class: 'goal-gem', 'aria-hidden': 'true' }),
+        h('span', { class: 'mgoal-text' },
+          h('span', { class: 'goal-name' }, g.name),
+          h('span', { class: 'goal-deadline' }, info.overdue ? icon('warning-diamond', 'goal-warning', 'ph-fill') : icon('calendar-blank'), shortDeadline(g, today))),
+        icon(open ? 'caret-down' : 'caret-right', 'mgoal-caret', 'ph-bold')),
+      open ? h('div', { class: 'mgoal-body' },
+        h('div', { class: 'mgoal-actions' },
+          g.status === 'active'
+            ? h('button', { type: 'button', class: 'btn', onclick: function () { setStatusTo('done'); } }, icon('check', null, 'ph-bold'), 'Atteint')
+            : h('button', { type: 'button', class: 'btn', onclick: function () { setStatusTo('active'); } }, icon('arrow-counter-clockwise', null, 'ph-bold'), 'Reprendre'),
+          h('button', { type: 'button', class: 'btn', onclick: function () { if (dateInput.showPicker) dateInput.showPicker(); else dateInput.click(); } },
+            icon('calendar-plus', null, 'ph-bold'), 'Reporter'),
+          dateInput),
+        note,
+        h('div', { class: 'mgoal-foot' },
+          g.status === 'active' ? h('button', { type: 'button', class: 'link-btn muted-link', onclick: function () { setStatusTo('abandoned'); } }, 'Abandonner') : h('span'),
+          h('button', {
+            type: 'button', class: 'link-btn danger-link',
+            onclick: function () { B.store.update(function (data) { removeGoal(data, g.id); }); drawList(); }
+          }, 'Supprimer'))
+      ) : null
+    );
   }
 
   function goalCard(g, today) {
@@ -218,7 +325,7 @@
     },
     logic: {
       addGoal: addGoal, sortedGoals: sortedGoals, deadlineInfo: deadlineInfo,
-      setStatus: setStatus, setNote: setNote, removeGoal: removeGoal
+      setStatus: setStatus, setNote: setNote, setDeadline: setDeadline, removeGoal: removeGoal
     }
   };
 })(window.Bourgeon = window.Bourgeon || {});

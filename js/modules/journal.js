@@ -91,9 +91,11 @@
     drawStatus();
     B.ui.flashSaved(els.saved);
     drawHistory();
+    if (els.mobile) drawWeek();   // losange « jour écrit » à jour
   }
 
   var JOURS_COURTS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
+  var INITIALES = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
   /* « Enregistré à 21:14 » (ou « le 03/03 à 21:14 » pour un autre jour). */
   function savedLabel(date) {
@@ -136,6 +138,8 @@
       history: h('div', { class: 'journal-history' })
     };
 
+    if (ctx.mobile) { renderMobile(container); draw(); return; }
+
     ctx.actions.appendChild(els.prev);
     ctx.actions.appendChild(els.next);
     ctx.actions.appendChild(els.todayBtn);
@@ -162,7 +166,66 @@
     draw();
   }
 
+  /*
+   * Mobile : bandeau de la semaine (le jour ouvert en évidence, un point sous
+   * les jours écrits), puis la carte du jour avec « Enregistrer » qui devient
+   * « ✓ Enregistré ».
+   */
+  function renderMobile(container) {
+    els.mobile = true;
+    els.week = h('div', { class: 'week-strip', role: 'group', 'aria-label': 'Semaine' });
+    els.mTitle = h('h2', { class: 'journal-m-title' });
+    els.mSave = h('button', { type: 'button', class: 'journal-m-save', onclick: save });
+    els.text.addEventListener('input', drawMobileSave);
+    container.appendChild(h('div', { class: 'journal mobile' },
+      els.week,
+      h('section', { class: 'card journal-editor' },
+        h('div', { class: 'journal-m-head' }, els.mTitle, els.mSave),
+        B.ui.ornament(),
+        els.text),
+      h('section', { class: 'journal-past' }, els.history)
+    ));
+  }
+
+  function drawWeek() {
+    var today = D.today();
+    var monday = D.startOfWeek(current);
+    var entries = B.store.get().journal.entries;
+    B.ui.clear(els.week);
+    els.week.appendChild(h('button', {
+      type: 'button', class: 'week-nav', 'aria-label': 'Semaine précédente',
+      onclick: function () { goTo(D.addDays(current, -7)); }
+    }, icon('caret-left', null, 'ph-bold')));
+    for (var i = 0; i < 7; i++) {
+      (function (date, i) {
+        var future = date > today;
+        els.week.appendChild(h('button', {
+          type: 'button',
+          class: 'week-day' + (date === current ? ' selected' : '') + (date === today ? ' today' : '') + (entries[date] && entries[date].text ? ' has' : ''),
+          disabled: future, 'aria-label': D.formatLong(date), 'aria-pressed': date === current ? 'true' : 'false',
+          onclick: function () { goTo(date); }
+        }, h('span', { class: 'week-letter' }, INITIALES[i]), h('span', { class: 'week-num num' }, String(D.parse(date).getDate()))));
+      })(D.addDays(monday, i), i);
+    }
+    els.week.appendChild(h('button', {
+      type: 'button', class: 'week-nav', 'aria-label': 'Semaine suivante', disabled: D.addDays(monday, 7) > today,
+      onclick: function () { goTo(D.addDays(current, 7)); }
+    }, icon('caret-right', null, 'ph-bold')));
+  }
+
+  function drawMobileSave() {
+    if (!els || !els.mSave) return;
+    var dirty = els.text.value !== els.loaded;
+    var saved = !!B.store.get().journal.entries[current];
+    B.ui.clear(els.mSave);
+    els.mSave.className = 'journal-m-save' + (dirty ? ' dirty' : '');
+    els.mSave.disabled = !dirty;
+    if (dirty) B.ui.append(els.mSave, [icon('floppy-disk', null, 'ph-bold'), 'Enregistrer']);
+    else if (saved) B.ui.append(els.mSave, [icon('check', null, 'ph-bold'), 'Enregistré']);
+  }
+
   function drawStatus() {
+    if (els.mobile) { drawMobileSave(); return; }
     var label = savedLabel(current);
     B.ui.clear(els.status);
     if (label) B.ui.append(els.status, [icon('check', null, 'ph-bold'), label]);
@@ -174,6 +237,10 @@
     var d = D.parse(current);
     var jour = D.JOURS[D.weekdayIndex(current)];
 
+    if (els.mobile) {
+      els.mTitle.textContent = jour.charAt(0).toUpperCase() + jour.slice(1) + ' ' + d.getDate() + ' ' + D.MOIS_COURTS[d.getMonth()];
+      drawWeek();
+    }
     els.day.textContent = d.getDate();
     els.relative.textContent = relativeLabel(current, today);
     els.weekday.textContent = jour.charAt(0).toUpperCase() + jour.slice(1);

@@ -219,6 +219,16 @@
     eq(G.deadlineInfo({ deadline: '2026-02-01', status: 'abandoned' }, '2026-03-03').overdue, false);
   });
 
+  test('Objectifs : reporter l\'échéance', function () {
+    var d = B.store.defaultData();
+    var id = G.addGoal(d, 'Dossier', '2026-09-27', '2026-09-01').goal.id;
+    eq(G.setDeadline(d, id, '2026-10-15').ok, true);
+    eq(d.goals.items[0].deadline, '2026-10-15');
+    eq(G.setDeadline(d, id, '').ok, false, 'date vide refusée');
+    eq(G.setDeadline(d, id, '2101-01-01').ok, false);
+    eq(d.goals.items[0].deadline, '2026-10-15', 'inchangée après refus');
+  });
+
   test('Objectifs : statut, note, suppression', function () {
     var d = B.store.defaultData();
     var id = G.addGoal(d, 'Lire 10 livres', '2026-12-31', '2026-03-03').goal.id;
