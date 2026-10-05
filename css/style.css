@@ -983,7 +983,7 @@ select.input { padding-right: 10px; }
 .rv-today-head { display: flex; flex-direction: column; gap: 4px; }
 .rv-today-title { font: 400 24px var(--font-title); color: var(--ink-strong); }
 .rv-late-count { color: var(--danger); }
-.rv-today-list { display: flex; flex-direction: column; gap: 10px; max-width: 900px; }
+.rv-today-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
 .rv-today-item {
   position: relative;
   display: flex; align-items: center; gap: 16px;
@@ -1000,12 +1000,38 @@ select.input { padding-right: 10px; }
 }
 .rv-check.late { box-shadow: inset 0 0 0 2px var(--danger); }
 .rv-check:hover { background: var(--done); box-shadow: none; }
-.rv-today-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rv-today-body { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .rv-today-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .rv-today-name { line-height: 1.2; color: var(--ink-strong); overflow-wrap: anywhere; }
 .rv-today-path { font-size: 13.5px; color: var(--muted); }
 .rv-today-meta { font: 600 12px var(--font); color: var(--muted); }
 .rv-today-item.late .rv-today-meta { color: var(--danger); }
+
+/* Tags : en-tête de groupe, sélecteur sur chaque cours, fenêtre de gestion */
+.rv-tag-head {
+  display: flex; align-items: center; gap: 9px; margin: 6px 0 -6px;
+  font: 400 19px var(--font-title); letter-spacing: .03em; color: var(--ink-strong);
+}
+.rv-tag-head i { font-size: 17px; color: var(--accent); }
+.rv-tag-head.none, .rv-tag-head.none i { color: var(--muted); }
+.rv-tag-count {
+  min-width: 24px; height: 22px; padding: 0 7px; border-radius: 11px; display: inline-grid; place-items: center;
+  font: 700 12px var(--font); background: var(--hover); color: var(--muted);
+}
+.rv-today-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.rv-tag-select {
+  appearance: none; -webkit-appearance: none;
+  margin-left: auto; field-sizing: content; max-width: 180px; min-height: 28px; padding: 0 12px; border: 0; border-radius: 14px;
+  background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--rule-strong);
+  font: 600 12px var(--font); text-overflow: ellipsis; cursor: pointer;
+}
+.rv-tag-select:hover { color: var(--ink-strong); box-shadow: inset 0 0 0 1px var(--muted); }
+.rv-tag-select.on { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+.rv-tag-select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rv-tag-select option { background: var(--card); color: var(--ink-strong); }
+.rv-tag-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.rv-tag-row-icon { color: var(--muted); font-size: 16px; }
+.rv-tag-add { margin-top: 4px; }
 
 /* ============ Sport ============ */
 .sport { display: flex; flex-direction: column; gap: 18px; }
@@ -1097,6 +1123,9 @@ select.input { padding-right: 10px; }
   .sport-top { grid-template-columns: minmax(0, 1fr); }
   .sport-pred-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .focus-history { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 960px) {
+  .rv-today-list { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ============ Éléments propres au mobile (cachés sur grand écran) ============ */
@@ -1364,7 +1393,7 @@ select.input { padding-right: 10px; }
   .rv-today-count { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; font-size: 15px; color: var(--muted); }
   .rv-today-count strong { font: 600 36px/1 var(--font); color: var(--ink-strong); margin-right: 4px; }
   .rv-today-count .rv-late-count { font-weight: 600; }
-  .rv-today-list { gap: 0; overflow: hidden; padding: 2px 16px; background: var(--card); border-radius: var(--radius); box-shadow: var(--card-shadow); }
+  .rv-today-list { display: flex; flex-direction: column; gap: 0; overflow: hidden; padding: 2px 16px; background: var(--card); border-radius: var(--radius); box-shadow: var(--card-shadow); }
   .rv-today-item, .rv-today-item.late {
     align-items: center; gap: 12px; padding: 13px 0; border-radius: 0; touch-action: pan-y;
     background: transparent; box-shadow: none; border-bottom: 1px solid var(--rule);

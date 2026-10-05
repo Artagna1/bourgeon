@@ -47,7 +47,8 @@
         stepTypes: [],           // { id, name, steps: [..] }
         subjects: [],            // { id, name, frozenAt, stepTypeId }
         chapters: [],            // { id, subjectId, name, frozenAt }
-        concepts: []             // { id, chapterId, name, addedAt, validations: [..], lastMaintenance, frozenAt }
+        concepts: [],            // { id, chapterId, name, addedAt, validations: [..], lastMaintenance, frozenAt, tagId }
+        tags: []                 // { id, name } — étiquettes de l'onglet « Aujourd'hui »
       },
       sport: {
         vma: 16.5,

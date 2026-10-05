@@ -394,6 +394,54 @@
     eq(RL.parseSteps('2.5').ok, false);
   });
 
+  test('Révisions : chapitres et concepts classés par ordre alphabétique', function () {
+    var t = revData();
+    ['chap 10 Séries', 'Chap 2 Suites', 'Équations'].forEach(function (n) { RL.addChapter(t.d, t.s.id, n); });
+    eq(RL.chaptersOf(t.d, t.s.id).map(function (c) { return c.name; }),
+      ['Chap 2 Suites', 'chap 10 Séries', 'Équations', 'Intégrales'], 'nombres lus comme des nombres, sans tenir compte des majuscules ni des accents');
+    ['cours 10', 'Arithmétique', 'cours 02'].forEach(function (n) { RL.addConcept(t.d, t.ch.id, n, '2026-03-01'); });
+    eq(RL.conceptsOf(t.d, t.ch.id).map(function (c) { return c.name; }),
+      ['Arithmétique', 'cours 02', 'cours 10', 'Intégration par parties']);
+  });
+
+  test('Révisions : tags (création, doublons, renommage, suppression)', function () {
+    var t = revData();
+    eq(RL.addTag(t.d, ' ').ok, false, 'nom vide refusé');
+    var soir = RL.addTag(t.d, 'Soir').tag;
+    RL.addTag(t.d, 'Bibliothèque');
+    eq(RL.addTag(t.d, 'soir').error, 'Un tag porte déjà ce nom.');
+    eq(RL.sortedTags(t.d).map(function (x) { return x.name; }), ['Bibliothèque', 'Soir'], 'ordre alphabétique');
+    eq(RL.renameTag(t.d, soir.id, 'Bibliothèque').ok, false, 'renommage en doublon refusé');
+    RL.renameTag(t.d, soir.id, 'Matin');
+    RL.setConceptTag(t.d, t.c.id, soir.id);
+    eq(RL.tagOf(t.d, t.c).name, 'Matin');
+    RL.deleteTag(t.d, soir.id);
+    eq([RL.tagOf(t.d, t.c), t.c.tagId, t.d.revisions.tags.length], [null, null, 1], 'supprimé : retiré des cours');
+  });
+
+  test('Révisions : le tag reste jusqu\'à la validation du cours', function () {
+    var t = revData();
+    var tag = RL.addTag(t.d, 'Matin').tag;
+    RL.setConceptTag(t.d, t.c.id, tag.id);
+    RL.undo(t.d, t.c.id, '2026-03-02');
+    eq(t.c.tagId, tag.id, 'gardé tant que le cours n\'est pas validé');
+    RL.validate(t.d, t.c.id, '2026-03-02');
+    eq(t.c.tagId, null, 'retiré à la validation');
+  });
+
+  test('Révisions : « Aujourd\'hui » regroupé par tag (alphabétique, sans tag à la fin)', function () {
+    var t = revData();
+    var c2 = RL.addConcept(t.d, t.ch.id, 'Changement de variable', '2026-03-01').concept;
+    var c3 = RL.addConcept(t.d, t.ch.id, 'Primitives', '2026-03-01').concept;
+    var soir = RL.addTag(t.d, 'Soir').tag, matin = RL.addTag(t.d, 'Matin').tag;
+    RL.addTag(t.d, 'Vide');
+    RL.setConceptTag(t.d, c2.id, soir.id);
+    RL.setConceptTag(t.d, c3.id, matin.id);
+    var groups = RL.groupByTag(t.d, RL.todayList(t.d, '2026-03-05'));
+    eq(groups.map(function (g) { return (g.tag ? g.tag.name : '—') + ':' + g.items.map(function (i) { return i.concept.name; }).join(','); }),
+      ['Matin:Primitives', 'Soir:Changement de variable', '—:Intégration par parties'], 'groupes vides omis');
+  });
+
   test('Révisions : premier palier = date d\'ajout + J+1', function () {
     var t = revData();
     var st = RL.stateOf(t.d, t.c, '2026-03-01');

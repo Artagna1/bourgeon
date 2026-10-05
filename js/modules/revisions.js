@@ -28,10 +28,12 @@
     els = { root: h('div', { class: 'revisions' }) };
     container.appendChild(els.root);
     if (ctx.mobile) {
+      if (view === 'today') ctx.corner.appendChild(B.ui.cornerButton('tag', 'Tags', openTags));
       ctx.corner.appendChild(view === 'today'
         ? B.ui.cornerButton('tree-structure', 'Arborescence', function () { B.app.showSection('revisions', 'tree'); })
         : B.ui.cornerButton('sliders-horizontal', 'Rythmes', openStepTypes));
     } else {
+      if (view === 'today') ctx.actions.appendChild(h('button', { type: 'button', class: 'btn', onclick: openTags }, icon('tag'), 'Tags'));
       ctx.actions.appendChild(h('button', { type: 'button', class: 'btn', onclick: openStepTypes }, icon('sliders-horizontal'), 'Rythmes'));
     }
     if (view === 'tree') {
@@ -469,6 +471,38 @@
       return;
     }
 
+    // Regroupement par tag (sans en-têtes tant qu'aucun cours n'a de tag)
+    var groups = RL.groupByTag(data(), items);
+    groups.forEach(function (g) {
+      if (groups.length > 1 || g.tag) {
+        els.root.appendChild(h('h3', { class: 'rv-tag-head' + (g.tag ? '' : ' none') },
+          icon(g.tag ? 'tag' : 'tag-simple', null, g.tag ? 'ph-fill' : 'ph'),
+          h('span', null, g.tag ? g.tag.name : 'Sans tag'),
+          h('span', { class: 'rv-tag-count num' }, String(g.items.length))));
+      }
+      els.root.appendChild(todayRows(g.items));
+    });
+  }
+
+  /* Sélecteur de tag d'un cours : aucun, un tag existant, ou en créer un. */
+  function tagSelect(concept) {
+    var current = RL.tagOf(data(), concept);
+    var select = h('select', {
+      class: 'rv-tag-select' + (current ? ' on' : ''), 'aria-label': 'Tag de ' + concept.name, title: 'Tag',
+      onchange: function () {
+        if (select.value === '__new') { select.value = current ? current.id : ''; openTags(concept.id); return; }
+        B.store.update(function (d) { RL.setConceptTag(d, concept.id, select.value); });
+        if (els) { B.ui.clear(els.root); renderToday(); }
+      }
+    },
+      h('option', { value: '' }, current ? 'Retirer le tag' : 'Sans tag'),
+      RL.sortedTags(data()).map(function (t) { return h('option', { value: t.id, selected: !!current && current.id === t.id }, t.name); }),
+      h('option', { value: '__new' }, 'Nouveau tag…'));
+    if (!current) select.value = '';
+    return select;
+  }
+
+  function todayRows(items) {
     var list = h('div', { class: 'rv-today-list' });
     items.forEach(function (item) {
       var st = item.state;
@@ -491,16 +525,88 @@
             h('span', { class: 'rv-today-name', style: 'font-size:' + style.size + 'px;font-weight:' + style.weight }, item.concept.name),
             h('span', { class: 'rv-today-path' }, item.subject.name + ' / ' + item.chapter.name)
           ),
-          h('p', { class: 'rv-today-meta num' },
-            stepLabel + ' · échéance ' + D.formatShort(st.due),
-            st.late ? ' · ' + st.lateDays + ' j de retard' : '')
+          h('div', { class: 'rv-today-foot' },
+            h('p', { class: 'rv-today-meta num' },
+              stepLabel + ' · échéance ' + D.formatShort(st.due),
+              st.late ? ' · ' + st.lateDays + ' j de retard' : ''),
+            tagSelect(item.concept))
         ),
         h('span', { class: 'rv-swipe-hint', 'aria-hidden': 'true' }, '→ Valider')
       );
       enableSwipe(row, function () { row.querySelector('.rv-check').click(); });
       list.appendChild(row);
     });
-    els.root.appendChild(list);
+    return list;
+  }
+
+  /*
+   * Fenêtre « Tags » : créer, renommer, supprimer. Ouverte depuis le
+   * sélecteur d'un cours (« Nouveau tag… »), le tag créé lui est assigné.
+   */
+  function openTags(forConceptId) {
+    if (typeof forConceptId !== 'string') forConceptId = null;
+    var list = h('div', { class: 'rv-types' });
+    var error = B.ui.formError();
+    var nameInput = h('input', { class: 'input', type: 'text', maxlength: '100', placeholder: 'Nom du tag (ex. Matin)', 'aria-label': 'Nom du nouveau tag' });
+
+    function drawTags() {
+      B.ui.clear(list);
+      var all = RL.sortedTags(data());
+      if (all.length === 0) list.appendChild(h('p', { class: 'muted small' }, 'Aucun tag pour le moment.'));
+      all.forEach(function (t) {
+        var n = h('input', { class: 'input', type: 'text', value: t.name, maxlength: '100', 'aria-label': 'Nom du tag' });
+        n.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); n.blur(); } });
+        n.addEventListener('change', function () {
+          var r = B.store.update(function (d) { return RL.renameTag(d, t.id, n.value); });
+          B.ui.setError(error, r.ok ? '' : r.error);
+          drawTags();
+        });
+        list.appendChild(h('div', { class: 'rv-tag-row' }, icon('tag', 'rv-tag-row-icon'), n,
+          h('button', {
+            type: 'button', class: 'icon-action danger', title: 'Supprimer', 'aria-label': 'Supprimer le tag ' + t.name,
+            onclick: function () {
+              B.store.update(function (d) { RL.deleteTag(d, t.id); });
+              drawTags();
+            }
+          }, icon('x'))));
+      });
+    }
+
+    var addForm = h('form', {
+      class: 'rv-tag-row rv-tag-add', novalidate: true,
+      onsubmit: function (e) {
+        e.preventDefault();
+        var r = B.store.update(function (d) {
+          var res = RL.addTag(d, nameInput.value);
+          if (res.ok && forConceptId) RL.setConceptTag(d, forConceptId, res.tag.id);
+          return res;
+        });
+        B.ui.setError(error, r.ok ? '' : r.error);
+        if (!r.ok) return;
+        if (forConceptId) { dlg.finish(); return; }   // créé depuis un cours : assigné, on referme
+        nameInput.value = '';
+        drawTags();
+        nameInput.focus();
+      }
+    }, icon('plus', 'rv-tag-row-icon'), nameInput, h('button', { type: 'submit', class: 'btn btn-primary' }, 'Créer'));
+
+    var dlg;
+    var content = h('div', { class: 'rv-types-dialog' },
+      h('h2', { class: 'modal-title' }, forConceptId ? 'Nouveau tag' : 'Tags'),
+      h('p', { class: 'modal-text' }, 'Un tag se pose sur un cours de « Aujourd\'hui » et y reste jusqu\'à ce que le cours soit validé. ' +
+        'La liste est regroupée par tag, par ordre alphabétique.'),
+      forConceptId ? null : list,
+      addForm,
+      error,
+      h('div', { class: 'modal-actions' }, h('button', { type: 'button', class: 'btn', onclick: function () { dlg.finish(); } }, 'Fermer'))
+    );
+    drawTags();
+    dlg = B.ui.openDialog(content, function () {
+      if (!els) return;
+      B.ui.clear(els.root);
+      if (view === 'today') renderToday(); else renderTree();
+    });
+    nameInput.focus();
   }
 
   /* Glisser une ligne vers la droite (au doigt) valide la révision. */

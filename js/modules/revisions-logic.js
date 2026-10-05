@@ -180,11 +180,19 @@
     rev(data).subjects = rev(data).subjects.filter(function (s) { return s.id !== id; });
   }
 
+  /*
+   * Ordre alphabétique, sans tenir compte des majuscules ni des accents, et
+   * en lisant les nombres comme des nombres (« Chap 2 » avant « Chap 10 »).
+   */
+  function byName(a, b) {
+    return a.name.localeCompare(b.name, 'fr', { numeric: true, sensitivity: 'base' });
+  }
+
   function chaptersOf(data, subjectId) {
-    return rev(data).chapters.filter(function (c) { return c.subjectId === subjectId; });
+    return rev(data).chapters.filter(function (c) { return c.subjectId === subjectId; }).sort(byName);
   }
   function conceptsOf(data, chapterId) {
-    return rev(data).concepts.filter(function (c) { return c.chapterId === chapterId; });
+    return rev(data).concepts.filter(function (c) { return c.chapterId === chapterId; }).sort(byName);
   }
 
   /* Matière d'un concept (via son chapitre). */
@@ -272,10 +280,11 @@
     if (s.inMaintenance) {
       if (!s.isDue) return false;
       c.lastMaintenance = day;
-      return true;
+    } else {
+      c.validations.push(day);
+      if (c.validations.length >= s.k) c.lastMaintenance = day;   // entrée en entretien
     }
-    c.validations.push(day);
-    if (c.validations.length >= s.k) c.lastMaintenance = day;   // entrée en entretien
+    c.tagId = null;   // un tag reste sur le cours jusqu'à ce qu'il soit validé
     return true;
   }
 
@@ -321,6 +330,69 @@
     return items;
   }
 
+  /* ---------- Tags de l'onglet « Aujourd'hui » ---------- */
+
+  /*
+   * Un tag (ex. « Matin », « Bibliothèque ») se pose sur un cours à réviser
+   * et y reste jusqu'à ce que le cours soit validé. La liste « Aujourd'hui »
+   * est regroupée par tag.
+   */
+  function tags(data) { return rev(data).tags; }
+
+  function sortedTags(data) { return tags(data).slice().sort(byName); }
+
+  function addTag(data, rawName) {
+    var name = B.validate.name(rawName, 'Merci d\'indiquer un nom de tag.');
+    if (!name.ok) return name;
+    if (tags(data).some(function (t) { return sameName(t.name, name.value); })) {
+      return { ok: false, error: 'Un tag porte déjà ce nom.' };
+    }
+    var tag = { id: B.store.newId(), name: name.value };
+    tags(data).push(tag);
+    return { ok: true, tag: tag };
+  }
+
+  function renameTag(data, id, rawName) {
+    var name = B.validate.name(rawName, 'Merci d\'indiquer un nom de tag.');
+    if (!name.ok) return name;
+    if (tags(data).some(function (t) { return t.id !== id && sameName(t.name, name.value); })) {
+      return { ok: false, error: 'Un tag porte déjà ce nom.' };
+    }
+    byId(tags(data), id).name = name.value;
+    return { ok: true };
+  }
+
+  /* Supprimer un tag le retire des cours qui le portaient. */
+  function deleteTag(data, id) {
+    rev(data).tags = tags(data).filter(function (t) { return t.id !== id; });
+    rev(data).concepts.forEach(function (c) { if (c.tagId === id) c.tagId = null; });
+  }
+
+  function setConceptTag(data, conceptId, tagId) {
+    byId(rev(data).concepts, conceptId).tagId = tagId || null;
+  }
+
+  /* Tag d'un cours (null si aucun, ou si le tag a été supprimé). */
+  function tagOf(data, concept) {
+    return (concept.tagId && byId(tags(data), concept.tagId)) || null;
+  }
+
+  /*
+   * Regroupe une liste « Aujourd'hui » par tag : tags par ordre alphabétique,
+   * puis les cours sans tag. Les groupes vides sont omis ; dans un groupe,
+   * l'ordre de la liste (échéances) est conservé.
+   */
+  function groupByTag(data, items) {
+    var groups = sortedTags(data).map(function (t) { return { tag: t, items: [] }; });
+    var none = { tag: null, items: [] };
+    items.forEach(function (item) {
+      var t = tagOf(data, item.concept);
+      var g = t ? groups.filter(function (x) { return x.tag.id === t.id; })[0] : none;
+      g.items.push(item);
+    });
+    return groups.concat([none]).filter(function (g) { return g.items.length > 0; });
+  }
+
   /*
    * Taille du titre selon le retard : la montée est rapide dès le premier
    * jour, puis plafonne au 4e jour.
@@ -345,6 +417,8 @@
     toggleFreeze: toggleFreeze, deleteConcept: deleteConcept, deleteChapter: deleteChapter, deleteSubject: deleteSubject,
     chaptersOf: chaptersOf, conceptsOf: conceptsOf, subjectOfConcept: subjectOfConcept, isFrozen: isFrozen,
     conceptState: conceptState, stateOf: stateOf, validate: validate, undo: undo,
-    todayList: todayList, lateStyle: lateStyle
+    todayList: todayList, lateStyle: lateStyle,
+    sortedTags: sortedTags, addTag: addTag, renameTag: renameTag, deleteTag: deleteTag,
+    setConceptTag: setConceptTag, tagOf: tagOf, groupByTag: groupByTag
   };
 })(window.Bourgeon = window.Bourgeon || {});

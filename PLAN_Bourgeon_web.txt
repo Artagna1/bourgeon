@@ -545,3 +545,24 @@ JOURNAL DE BORD
              (« Nouvelle habitude… / Ajouter », « + Objectif »).
              Vérifié : 64 tests + captures bureau clair / sombre, mobile,
              largeur moyenne, session Focus en cours.
+
+05/10/2026 — Révisions : chapitres et concepts classés par ordre alphabétique
+             (sans tenir compte des majuscules ni des accents ; nombres lus
+             comme des nombres : « Chap 2 » avant « Chap 10 »). Vaut aussi
+             pour la liste des chapitres de Focus. 65 tests.
+
+05/10/2026 — Révisions · Aujourd'hui : liste sur 2 colonnes sur grand écran
+             (une seule sous 960 px et sur mobile), dans l'ordre des
+             échéances, de gauche à droite puis ligne par ligne.
+
+05/10/2026 — Révisions · Aujourd'hui : TAGS. Fenêtre « Tags » (bouton dans
+             l'en-tête ; sur mobile, bouton étiquette en haut à droite) pour
+             créer, renommer, supprimer des tags (nom 2–100 car., pas de
+             doublon). Sur chaque cours, une pastille pour choisir son tag
+             (ou « Nouveau tag… », créé et assigné d'un coup). Le tag reste
+             sur le cours jusqu'à ce qu'il soit validé (alors il est
+             retiré). La liste est regroupée par tag, groupes par ordre
+             alphabétique, « Sans tag » à la fin ; l'ordre des échéances
+             est gardé dans chaque groupe. Données : revisions.tags
+             [{ id, name }] et concept.tagId (ajoutés automatiquement aux
+             données existantes). 68 tests.
