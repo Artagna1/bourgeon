@@ -25,36 +25,30 @@
   /*
    * Les 7 sections, dans l'ordre de la barre latérale.
    * icon = nom d'icône Phosphor (https://phosphoricons.com), kicker = sous-titre
-   * au-dessus du titre de la page, step = étape du plan.
+   * au-dessus du titre de la page, navLabel = nom court dans la barre
+   * latérale, step = étape du plan.
    */
   var SECTIONS = [
-    { id: 'journal', label: 'Journal', icon: 'scroll', kicker: 'Chronique des jours', step: 2 },
-    { id: 'habits', label: 'Habitudes', icon: 'plant', kicker: 'Livre des rituels', step: 4,
+    { id: 'journal', label: 'Journal', icon: 'feather', kicker: 'Chronique', step: 2 },
+    { id: 'habits', label: 'Habitudes', icon: 'plant', kicker: 'Suivi', step: 4,
       tabs: [{ id: 'month', label: 'Mois' }, { id: 'global', label: 'Global' }],
       mobileTabs: [{ id: 'today', label: 'Aujourd\'hui' }, { id: 'month', label: 'Mois' }, { id: 'global', label: 'Global' }] },
-    { id: 'focus', label: 'Focus', icon: 'hourglass-high', kicker: 'Veille de concentration', step: 6,
+    { id: 'focus', label: 'Focus', icon: 'timer', kicker: 'Concentration', step: 6,
       tabs: [{ id: 'session', label: 'Session' }, { id: 'history', label: 'Historique' }],
       mobileCornerTabs: true },   // mobile : on passe d'un onglet à l'autre par le bouton du coin
-    { id: 'goals', label: 'Objectifs', icon: 'sword', kicker: 'Quêtes en cours', step: 3 },
-    { id: 'eisenhower', label: 'Eisenhower', icon: 'scales', kicker: 'Table du conseil', step: 7 },
-    { id: 'revisions', label: 'Révisions', icon: 'book-open-text', kicker: 'Mémoire des arcanes', step: 5,
+    { id: 'goals', label: 'Objectifs', icon: 'target', kicker: 'Cap', step: 3 },
+    { id: 'eisenhower', label: 'Eisenhower', navLabel: 'Matrice', icon: 'squares-four', kicker: 'Priorités', step: 7 },
+    { id: 'revisions', label: 'Révisions', icon: 'brain', kicker: 'Mémoire', step: 5,
       tabs: [{ id: 'tree', label: 'Arborescence' }, { id: 'today', label: 'Aujourd\'hui' }],
       mobileTabs: [{ id: 'today', label: 'Aujourd\'hui' }, { id: 'tree', label: 'Arborescence' }] },
-    { id: 'sport', label: 'Sport', icon: 'heartbeat', kicker: 'Carnet du coureur', step: 8,
+    { id: 'sport', label: 'Sport', icon: 'barbell', kicker: 'Entraînement', step: 8,
       tabs: [{ id: 'planning', label: 'Planning' }, { id: 'vma', label: 'Course (VMA)' }] }
   ];
-
-  /* Emblème : soleil à douze rayons et spirale (dessin statique). */
-  var EMBLEM = '<svg class="brand-emblem" viewBox="-50 -50 100 100" aria-hidden="true"><g class="rays">' +
-    [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(function (a) {
-      return '<polygon points="-4,-27 0,-49 4,-27" transform="rotate(' + a + ')"/>';
-    }).join('') + '</g><circle r="23"/>' +
-    '<path d="M0 0 m2 0 a2 2 0 1 0 -4 0 a6 6 0 1 0 10 0 a10 10 0 1 0 -18 0 a14 14 0 1 0 25 0"/></svg>';
 
   var THEME_KEY = 'bourgeon.theme';
 
   /*
-   * Mobile (écran étroit) : barre d'onglets en bas, Focus en losange au
+   * Mobile (écran étroit) : barre d'onglets en bas, Focus en rond au
    * centre, « Plus » pour Objectifs, Eisenhower et Sport. Certains modules
    * proposent alors une mise en page et des sous-onglets propres au mobile.
    */
@@ -84,11 +78,14 @@
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     try { localStorage.setItem(THEME_KEY, theme); } catch (e) { /* non bloquant */ }
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#080b1a' : '#f1eee8');
     B.ui.clear(els.themeBtn);
     B.ui.append(els.themeBtn, theme === 'dark'
-      ? [icon('sun'), h('span', { class: 'theme-label' }, 'Mode clair')]
-      : [icon('moon-stars'), h('span', { class: 'theme-label' }, 'Mode sombre')]);
+      ? [icon('sun'), h('span', { class: 'theme-label' }, 'Clair')]
+      : [icon('moon'), h('span', { class: 'theme-label' }, 'Sombre')]);
     els.themeBtn.setAttribute('aria-label', theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre');
+    els.themeBtn.title = els.themeBtn.getAttribute('aria-label');
   }
 
   /* --- Construction de la coquille --- */
@@ -99,7 +96,7 @@
         return h('button', {
           type: 'button', class: 'nav-item', 'data-section': s.id,
           onclick: function () { showSection(s.id); }
-        }, icon(s.icon, 'nav-icon'), h('span', { class: 'nav-label' }, s.label),
+        }, icon(s.icon, 'nav-icon'), h('span', { class: 'nav-label' }, s.navLabel || s.label),
           h('span', { class: 'count', hidden: true }));
       })
     );
@@ -120,10 +117,10 @@
       h('aside', { class: 'sidebar' },
         brandBlock(),
         els.nav,
-        h('button', { type: 'button', class: 'theme-toggle data-btn', onclick: function () { B.backup.open(); } },
-          icon('database'), h('span', { class: 'theme-label' }, 'Données'),
-          els.syncDot = h('span', { class: 'sync-dot', hidden: true, role: 'status' })),
-        els.themeBtn
+        h('div', { class: 'side-foot' },
+          els.themeBtn,
+          els.dataBtn = h('button', { type: 'button', class: 'theme-toggle data-btn', onclick: function () { B.backup.open(); } },
+            els.syncIcon = icon('database'), els.syncLabel = h('span', { class: 'theme-label' }, 'Données')))
       ),
       h('main', { class: 'main' },
         h('header', { class: 'page-header' }, h('div', { class: 'page-titles' }, els.kicker, els.title), els.corner, els.tabs, els.actions),
@@ -143,7 +140,7 @@
       type: 'button', class: 'tab-item' + (extraClass ? ' ' + extraClass : ''), 'data-section': id,
       onclick: function () { showSection(id); }
     },
-      id === 'focus' ? h('span', { class: 'tab-gem' }, icon(s.icon, 'tab-icon', 'ph-fill')) : icon(s.icon, 'tab-icon'),
+      id === 'focus' ? h('span', { class: 'tab-gem' }, icon(s.icon, 'tab-icon', 'ph-bold')) : icon(s.icon, 'tab-icon'),
       h('span', { class: 'tab-label' }, s.label),
       h('span', { class: 'count tab-count', hidden: true }));
   }
@@ -156,7 +153,7 @@
     return els.tabbar;
   }
 
-  /* Le dernier emplacement prend l'icône du module ouvert parmi Objectifs, Eisenhower et Sport. */
+  /* Le dernier emplacement prend l'icône du module ouvert parmi l'accueil, Objectifs, Eisenhower et Sport. */
   function drawMoreBtn() {
     var current = TAB_MORE.indexOf(state.section) >= 0 ? findSection(state.section) : null;
     B.ui.clear(els.moreBtn);
@@ -177,21 +174,22 @@
         return h('button', { type: 'button', class: 'more-item' + (state.section === id ? ' active' : ''), onclick: function () { go(id); } },
           icon(s.icon, 'more-icon'), h('span', null, s.label), h('span', { class: 'more-kicker' }, s.kicker));
       }),
-      B.ui.ornament(),
+      h('hr', { class: 'more-sep' }),
       h('button', { type: 'button', class: 'more-item', onclick: function () { dlg.finish(''); B.backup.open(); } },
         icon('database', 'more-icon'), h('span', null, 'Données et synchronisation')),
       h('button', { type: 'button', class: 'more-item', onclick: function () { dlg.finish(''); applyTheme(currentTheme() === 'dark' ? 'light' : 'dark'); } },
-        icon(currentTheme() === 'dark' ? 'sun' : 'moon-stars', 'more-icon'), h('span', null, currentTheme() === 'dark' ? 'Mode clair' : 'Mode sombre'))
+        icon(currentTheme() === 'dark' ? 'sun' : 'moon', 'more-icon'), h('span', null, currentTheme() === 'dark' ? 'Mode clair' : 'Mode sombre'))
     );
     dlg = B.ui.openDialog(content);
     dlg.classList.add('sheet');
     dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.finish(''); });   // toucher le fond ferme
   }
 
+  /* Marque : une pousse dans un carré arrondi. */
   function brandBlock() {
-    var mark = h('span', { class: 'brand-mark' });
-    mark.innerHTML = EMBLEM;   // dessin fixe, sans donnée de l'utilisateur
-    return h('div', { class: 'brand' }, mark, h('span', { class: 'brand-name' }, 'Bourgeon'), B.ui.ornament('brand-ornament'));
+    return h('div', { class: 'brand', title: 'Bourgeon' },
+      h('span', { class: 'brand-mark' }, icon('plant', null, 'ph-fill')),
+      h('span', { class: 'visually-hidden' }, 'Bourgeon'));
   }
 
   /* --- Navigation --- */
@@ -382,7 +380,7 @@
     refreshBadges();
   }
 
-  /* Petit indicateur de synchronisation sur le bouton « Données ». */
+  /* État de la synchronisation sur le bouton du bas de la barre latérale. */
   var SYNC_LOOK = {
     ok: { icon: 'cloud-check', label: 'Synchronisé', tone: 'ok' },
     pending: { icon: 'cloud-arrow-up', label: 'Envoi en attente…', tone: 'pending' },
@@ -392,16 +390,16 @@
     signedout: { icon: 'cloud', label: 'Non connecté', tone: 'muted' }
   };
   function drawSyncStatus() {
-    if (!els.syncDot) return;
+    if (!els.dataBtn) return;
     var st = B.sync.status();
     var look = SYNC_LOOK[st.status];
-    els.syncDot.hidden = !look;
-    if (!look) return;
-    B.ui.clear(els.syncDot);
-    els.syncDot.className = 'sync-dot ' + look.tone;
-    els.syncDot.appendChild(icon(look.icon));
-    els.syncDot.title = look.label + (st.detail ? ' — ' + st.detail : '');
-    els.syncDot.setAttribute('aria-label', look.label);
+    var fresh = icon(look ? look.icon : 'database');
+    els.syncIcon.replaceWith(fresh);
+    els.syncIcon = fresh;
+    els.syncLabel.textContent = look ? 'Sync' : 'Données';
+    els.dataBtn.className = 'theme-toggle data-btn' + (look ? ' sync-' + look.tone : '');
+    els.dataBtn.title = look ? 'Données et synchronisation — ' + look.label + (st.detail ? ' — ' + st.detail : '') : 'Données (sauvegarde, import)';
+    els.dataBtn.setAttribute('aria-label', els.dataBtn.title);
   }
 
   /*

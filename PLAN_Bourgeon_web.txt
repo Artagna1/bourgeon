@@ -38,9 +38,9 @@ ORGANISATION DES FICHIERS
 --------------------------------------------------------------------------------
 
   index.html            page unique de l'application
-  css/style.css         styles Nocturne ; couleurs en variables (sombre par
+  css/style.css         styles « Épure » ; couleurs en variables (sombre par
                         défaut, clair via data-theme="light")
-  vendor/inter/         police Inter (copie locale, hors ligne)
+  vendor/fonts/         polices Marcellus SC et Chakra Petch (copie locale)
   vendor/phosphor/      icônes Phosphor regular / fill / bold (copie locale) ;
                         s'utilisent avec Bourgeon.ui.icon('timer')
   js/core/dates.js      dates "AAAA-MM-JJ" en heure locale, semaines au lundi,
@@ -50,7 +50,8 @@ ORGANISATION DES FICHIERS
                         versionné + migrations, jamais d'écrasement si illisible
   js/core/ui.js         outils d'interface : h() (créer du HTML), sous-onglets,
                         confirmations, erreurs, « ✓ Enregistré »
-  js/app.js             coquille : barre latérale, navigation, thème, erreurs
+  js/app.js             coquille : barre latérale (rail d'icônes), barre
+                        d'onglets mobile, navigation, thème, erreurs
   js/modules/*.js       un fichier par module (à créer, étapes 2 à 8) ;
                         chaque module s'enregistre dans Bourgeon.modules.<id>
                         avec render(container, tabId) et leave() facultatif
@@ -278,8 +279,9 @@ D. Points à préciser
 RÉFÉRENCE DESIGN
 ================================================================================
 
-[Remplacé le 01/10/2026 par la refonte « Grimoire & Crypte » — voir le
-journal de bord. Ce qui suit décrit l'ancien style Nocturne.]
+[Remplacé le 01/10/2026 par « Grimoire & Crypte », puis le 05/10/2026 par
+« Épure » (fichiers « Bourgeon Epure » et « Bourgeon Epure Onglets » du même
+projet) — voir le journal de bord. Ce qui suit décrit l'ancien style Nocturne.]
 Maquette : projet claude.ai/design « Bourgeon Directions »
   https://claude.ai/design/p/0f5679a3-d4b8-4258-addb-05d380e7203c
   fichier « Bourgeon Directions.dc.html » (lecture via /design-login).
@@ -521,3 +523,25 @@ JOURNAL DE BORD
              Grand écran inchangé. Vérifié : 64 tests + simulation synchro
              + 30 contrôles bureau + 29 contrôles mobile + captures
              clair / sombre.
+
+05/10/2026 — Refonte graphique « Épure » d'après les maquettes claude.ai/design
+             « Bourgeon Epure » (accueil clair / sombre + mobile clair) et
+             « Bourgeon Epure Onglets » (les 7 onglets, sombre). Clair :
+             crème, encre, bleu (fait) et carmin (action, retards). Sombre :
+             nuit, cyan (fait), violet (action), rouge (retards), vert
+             (réussites). Polices Marcellus SC (titres) et Chakra Petch
+             (texte, chiffres) dans vendor/fonts (Cinzel / Spectral
+             retirées). Cartes arrondies, ronds à la place des losanges,
+             cadran Focus en chronomètre. Barre latérale réduite à un rail
+             d'icônes (Journal, Habitudes, Focus, Objectifs,
+             Matrice, Révisions, Sport ; thème et Sync en bas ; pastille
+             pour les compteurs). Nouvelles icônes et sous-titres courts
+             (Chronique, Suivi, Concentration, Cap, Priorités, Mémoire,
+             Entraînement). L'écran Accueil de la maquette a été essayé
+             puis retiré à la demande de l'utilisateur (pas d'accueil).
+             Habitudes : semaines en barres, cadran et classement en cartes.
+             Mobile : Focus rond au centre de la barre d'onglets. Icônes de
+             l'appli redessinées (pousse sur violet). Libellés neutres
+             (« Nouvelle habitude… / Ajouter », « + Objectif »).
+             Vérifié : 64 tests + captures bureau clair / sombre, mobile,
+             largeur moyenne, session Focus en cours.

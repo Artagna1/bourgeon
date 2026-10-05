@@ -391,7 +391,7 @@
         h('span', { class: 'dial-target' }, icon('book-open'), 'Aucune session en cours'),
         h('span', { class: 'dial-cycle' }, 'Prêt')));
       els.dial.appendChild(dialRing(h('div', { class: 'dial-center' },
-        h('span', { class: 'dial-phase' }, '◆ Prêt'),
+        h('span', { class: 'dial-phase' }, 'Prêt'),
         h('span', { class: 'dial-time num' }, '--:--'),
         h('span', { class: 'dial-sub' }, 'Choisis la configuration puis démarre.'))));
       els.dial.appendChild(h('div', { class: 'dial-actions' },
@@ -433,7 +433,7 @@
       refs.cycle.textContent = FL.MODES[a2.mode] + (isPomo ? ' · cycle ' + info.cycle : '');
 
       // La pause est prioritaire sur tout le reste
-      refs.phase.textContent = paused ? '❚❚ En pause' : isPomo ? (info.phase === 'work' ? '◆ Travail' : '◆ Pause') : '◆ En cours';
+      refs.phase.textContent = paused ? 'En pause' : isPomo ? (info.phase === 'work' ? 'Travail' : 'Pause') : 'En cours';
       refs.ring.style.setProperty('--p', info.progress === null ? 100 : Math.round(info.progress * 1000) / 10);
       refs.ring.classList.toggle('free', info.progress === null);
       refs.time.textContent = FL.formatTimer(info.seconds);

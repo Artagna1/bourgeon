@@ -129,7 +129,7 @@
       grid: h('div', { class: 'hgrid', role: 'table', 'aria-label': 'Suivi des habitudes' }),
       newName: h('input', {
         class: 'input', type: 'text', maxlength: '100',
-        placeholder: 'Inscrire un nouveau rituel…', 'aria-label': 'Nouvelle habitude'
+        placeholder: 'Nouvelle habitude…', 'aria-label': 'Nouvelle habitude'
       }),
       error: B.ui.formError(),
 
@@ -146,7 +146,7 @@
 
     var addForm = h('form', { class: 'habits-add', novalidate: true, onsubmit: onAdd },
       els.newName,
-      h('button', { type: 'submit', class: 'btn btn-primary' }, icon('plus', null, 'ph-bold'), 'Invoquer')
+      h('button', { type: 'submit', class: 'btn btn-primary' }, icon('plus', null, 'ph-bold'), 'Ajouter')
     );
 
     container.appendChild(h('div', { class: 'habits-month' },
@@ -160,17 +160,17 @@
             els.curve
           ),
           h('div', { class: 'habits-panel' },
-            h('h2', { class: 'section-label' }, 'Semaines'),
+            h('h2', { class: 'section-label' }, 'Par semaine'),
             els.weeks
           )
         )
       ),
       h('aside', { class: 'habits-side' },
-        h('div', { class: 'habits-ring-block' },
-          els.ring,
-          h('h2', { class: 'section-label' }, 'Complétion du mois')
+        h('section', { class: 'card habits-ring-block' },
+          h('h2', { class: 'section-label' }, 'Complétion du mois'),
+          els.ring
         ),
-        h('div', { class: 'habits-ranking-block' },
+        h('section', { class: 'card habits-ranking-block' },
           h('h2', { class: 'section-label' }, 'Classement'),
           els.ranking,
           h('div', { class: 'level-legend' },
@@ -222,7 +222,7 @@
     }
     els.grid.appendChild(h('div', { class: 'hrow hrow-head', role: 'row' },
       h('div', { class: 'hfix' },
-        h('span', { role: 'columnheader' }, 'Rituel'),
+        h('span', { role: 'columnheader' }, 'Habitude'),
         h('span', { class: 'right', role: 'columnheader' }, 'Fait'),
         h('span', { class: 'right', role: 'columnheader' }, '%')
       ),
@@ -405,12 +405,14 @@
 
     drawPins(d);
 
-    // Semaines : un losange par semaine, de la couleur de son niveau
+    // Semaines : une barre par semaine, de la couleur de son niveau
     B.ui.clear(els.weeks);
     L.weeklyRecap(d, month).forEach(function (w) {
+      var lvl = L.level(w.pct);
       els.weeks.appendChild(h('div', { class: 'week', title: 'Jours ' + w.label + ' : ' + w.pct + ' %' },
-        h('span', { class: 'week-gem lvl-' + L.level(w.pct) }, h('span', { class: 'num' }, String(w.pct))),
-        h('span', { class: 'week-range num' }, w.label)
+        h('span', { class: 'week-range num' }, w.label),
+        h('div', { class: 'bar' }, h('span', { class: 'bar-fill lvl-' + lvl, style: 'width:' + Math.min(w.pct, 100) + '%' })),
+        h('span', { class: 'week-pct num lvl-' + lvl }, w.pct + ' %')
       ));
     });
   }

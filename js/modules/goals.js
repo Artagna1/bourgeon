@@ -100,7 +100,7 @@
       stats: h('div', { class: 'goals-stats', 'aria-live': 'polite' }),
       name: h('input', {
         class: 'input goals-name', type: 'text', maxlength: '100',
-        placeholder: 'Nom de la quête…', 'aria-label': 'Nom de l\'objectif'
+        placeholder: 'Nom de l\'objectif…', 'aria-label': 'Nom de l\'objectif'
       }),
       date: h('input', {
         class: 'input goals-date', type: 'date', value: D.today(),
@@ -121,7 +121,7 @@
     );
 
     if (ctx.mobile) {
-      // Mobile : filtres par statut, formulaire replié derrière « + Quête »
+      // Mobile : filtres par statut, formulaire replié derrière « + Objectif »
       els.filters = h('div', { class: 'goals-filters' });
       form.classList.add('collapsed-form');
       els.form = form;
@@ -132,7 +132,7 @@
             form.classList.toggle('collapsed-form');
             if (!form.classList.contains('collapsed-form')) { window.scrollTo({ top: 0, behavior: 'smooth' }); els.name.focus(); }
           }
-        }, icon('plus', null, 'ph-bold'), 'Quête')));
+        }, icon('plus', null, 'ph-bold'), 'Objectif')));
       drawList();
       return;
     }
