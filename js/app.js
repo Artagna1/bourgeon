@@ -362,6 +362,16 @@
     // Appli installable et utilisable hors ligne (seulement une fois en ligne,
     // pas en ouvrant le fichier index.html directement)
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      // Une nouvelle version vient de prendre la main : on recharge une fois
+      // pour l'afficher (seulement s'il y avait déjà une version installée).
+      var hadController = !!navigator.serviceWorker.controller;
+      var reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (!hadController || reloaded) return;
+        reloaded = true;
+        flushCurrent();
+        location.reload();
+      });
       navigator.serviceWorker.register('sw.js').catch(function () { /* non bloquant */ });
     }
   }
