@@ -789,7 +789,29 @@
   test('Sport : records ajoutés aux anciennes données', function () {
     var old = { version: 1, sport: { vma: 15, planning: ['', '', '', '', '', '', ''] } };
     var d = B.store.parse(JSON.stringify(old)).data;
-    eq([d.sport.vma, d.sport.recordBlocks, d.sport.records], [15, [], []]);
+    eq([d.sport.vma, d.sport.recordBlocks, d.sport.records, d.sport.hrZones], [15, [], [], []]);
+  });
+
+  test('Sport : fréquences cardiaques (saisie, ordre, suppression)', function () {
+    var d = B.store.defaultData();
+    eq(d.sport.hrZones, []);
+    var ef = SL.addHrZone(d, { name: ' Endurance fondamentale (EF) ', hr: ' 130–150 bpm ', speed: '8,5–9,8 km/h', pace: '6\'10–7\'00/km', usage: '~80 % de tes séances' });
+    eq([ef.ok, ef.zone.name, ef.zone.hr], [true, 'Endurance fondamentale (EF)', '130–150 bpm']);
+    eq(SL.addHrZone(d, { name: '' }).error, 'Merci d\'indiquer un nom de zone.');
+    eq(SL.addHrZone(d, { name: 'endurance FONDAMENTALE (ef)' }).error, 'Une zone porte déjà ce nom.');
+    eq(SL.addHrZone(d, { name: 'Seuil', hr: new Array(52).join('x') }).error, 'La FC doit contenir au plus 50 caractères.');
+    var vma = SL.addHrZone(d, { name: 'VMA', hr: '> 180 bpm' }).zone;
+    eq([vma.speed, vma.pace, vma.usage], ['', '', ''], 'champs facultatifs');
+    var seuil = SL.addHrZone(d, { name: 'Seuil', hr: '165–175 bpm' }).zone;
+    SL.moveHrZone(d, seuil.id, -1);
+    eq(d.sport.hrZones.map(function (z) { return z.name; }), ['Endurance fondamentale (EF)', 'Seuil', 'VMA']);
+    SL.moveHrZone(d, ef.zone.id, -1);
+    eq(d.sport.hrZones[0].name, 'Endurance fondamentale (EF)', 'déjà en tête : inchangé');
+    eq(SL.updateHrZone(d, vma.id, { name: 'Seuil' }).error, 'Une zone porte déjà ce nom.');
+    SL.updateHrZone(d, vma.id, { name: 'VMA', hr: '> 182 bpm', usage: 'Fractionné court' });
+    eq([SL.findHrZone(d, vma.id).hr, SL.findHrZone(d, vma.id).usage], ['> 182 bpm', 'Fractionné court']);
+    SL.deleteHrZone(d, seuil.id);
+    eq(d.sport.hrZones.length, 2);
   });
 
   /* ---------- Synchronisation ---------- */

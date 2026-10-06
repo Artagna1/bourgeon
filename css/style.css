@@ -1075,6 +1075,23 @@ select.input { padding-right: 10px; }
 .sport-grid td { font: 500 14.5px var(--font); }
 .sport-grid .ref { color: var(--accent); font-weight: 700; background: var(--accent-soft); }
 
+/* Fréquences cardiaques (onglet Course) : tableau sur bureau, liste sur mobile */
+.hr-card .section-label .ph { color: var(--danger); margin-right: 6px; }
+.hr-table tbody tr { cursor: pointer; }
+.hr-edit { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.hr-edit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+.hr-bpm { font-weight: 700; color: var(--accent); }
+.hr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hr-list li + li { border-top: 1px solid var(--rule); }
+.hr-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; width: 100%; padding: 10px 0;
+  border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.hr-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.hr-name { font-size: 15px; color: var(--ink-strong); overflow-wrap: anywhere; }
+.hr-row .hr-bpm { font-size: 15.5px; text-align: right; white-space: nowrap; }
+.hr-detail, .hr-usage { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+
 /* Records : un bloc = une carte, un exercice = une ligne (nom, résultat, date) */
 .rec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px; align-items: start; }
 .rec-block { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; }

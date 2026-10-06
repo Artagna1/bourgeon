@@ -198,6 +198,8 @@ ORGANISATION DES FICHIERS
     [x] Onglet PLANNING : semaine type, un texte par jour.
     [x] Onglet COURSE (VMA) : saisie VMA, prédictions Riegel, zones d'effort,
         tableau de temps de passage (% VMA).
+        Bloc FRÉQUENCES CARDIAQUES (ajouté le 06/10/2026) : zones saisies
+        à la main (zone, FC, vitesse, allure, usage).
     [x] Onglet RECORDS (ajouté le 06/10/2026) : blocs libres, exercices,
         résultat en texte libre, date du record, historique.
     Fichiers : js/modules/sport-logic.js (calculs, testés) et
@@ -588,3 +590,16 @@ JOURNAL DE BORD
              (ajoutés automatiquement aux données existantes ; synchronisés
              avec le reste du module Sport). Cache hors ligne v10.
              71 tests + captures bureau clair / sombre, mobile, fenêtre.
+
+06/10/2026 — Sport · Course : nouveau bloc « Fréquences cardiaques » (entre
+             les allures par zone et les temps de passage ; sur mobile, après
+             « Allure par zone »). Une ligne par zone, tout en texte libre :
+             zone (obligatoire, sans doublon), FC, vitesse, allure (50 car.
+             max), usage (100 car. max). Bouton « + Zone » ; toucher une
+             ligne pour la modifier, la monter / descendre ou la supprimer
+             (confirmation). Ordre de saisie conservé. Tableau sur bureau,
+             liste sur mobile. Données : sport.hrZones [{ id, name, hr,
+             speed, pace, usage }] (ajouté automatiquement aux données
+             existantes ; synchronisé avec le reste du module Sport).
+             Cache hors ligne v11. 72 tests + captures bureau, mobile,
+             fenêtre.

@@ -5,7 +5,8 @@
  * Onglet PLANNING : la semaine type (un texte par jour, chacun avec son
  * bouton « Enregistrer »).
  * Onglet COURSE (VMA) : la VMA, les chronos prévus (Riegel), les allures
- * par zone d'effort et le tableau des temps de passage.
+ * par zone d'effort, les fréquences cardiaques (saisies à la main) et le
+ * tableau des temps de passage.
  * Onglet RECORDS : des blocs libres (« Course », « Poids du corps »…), chacun
  * avec ses exercices, leur meilleur résultat et la date du record.
  */
@@ -130,6 +131,8 @@
       ))
     ));
 
+    els.root.appendChild(renderHr());
+
     // Tableau des temps de passage
     els.root.appendChild(h('section', { class: 'card' },
       h('div', { class: 'card-head' },
@@ -177,6 +180,8 @@
           h('span', { class: 'sport-mzone-pace num z' + i, title: z.paceText }, z.paceText.replace('/km', '')));
       })));
 
+    els.root.appendChild(renderHr());
+
     els.root.appendChild(h('details', { class: 'sport-mpass' },
       h('summary', null, h('span', null, 'Temps de passage'), icon('caret-right', 'sport-mpass-caret', 'ph-bold')),
       h('div', { class: 'table-scroll' }, h('table', { class: 'table sport-grid' },
@@ -218,6 +223,108 @@
     });
     input.focus();
     input.select();
+  }
+
+  /* ---------- Fréquences cardiaques (onglet COURSE) ---------- */
+
+  /* Bureau : un tableau ; mobile : une liste. Toucher une zone pour la modifier. */
+  function renderHr() {
+    var zones = data().sport.hrZones;
+    var body;
+    if (zones.length === 0) {
+      body = h('p', { class: 'muted small' }, 'Note ici tes zones de fréquence cardiaque : FC, vitesse, allure et usage de chacune.');
+    } else if (els.mobile) {
+      body = h('ul', { class: 'hr-list' }, zones.map(function (z) {
+        var detail = [z.speed, z.pace].filter(Boolean).join(' · ');
+        return h('li', null, h('button', { type: 'button', class: 'hr-row', title: 'Modifier', onclick: function () { editHrZone(z.id); } },
+          h('span', { class: 'hr-name' }, z.name),
+          h('span', { class: 'hr-bpm num' }, z.hr),
+          detail ? h('span', { class: 'hr-detail num' }, detail) : null,
+          z.usage ? h('span', { class: 'hr-usage' }, z.usage) : null));
+      }));
+    } else {
+      body = h('div', { class: 'table-scroll' }, h('table', { class: 'table hr-table' },
+        h('thead', null, h('tr', null,
+          h('th', { scope: 'col' }, 'Zone'), h('th', { scope: 'col' }, 'FC'),
+          h('th', { scope: 'col' }, 'Vitesse'), h('th', { scope: 'col' }, 'Allure'), h('th', { scope: 'col' }, 'Usage'))),
+        h('tbody', null, zones.map(function (z) {
+          function open() { editHrZone(z.id); }
+          return h('tr', { onclick: open },
+            h('th', { scope: 'row' }, h('button', { type: 'button', class: 'hr-edit', title: 'Modifier',
+              onclick: function (e) { e.stopPropagation(); open(); } }, z.name)),
+            h('td', { class: 'num hr-bpm' }, z.hr),
+            h('td', { class: 'num' }, z.speed),
+            h('td', { class: 'num sport-pace' }, z.pace),
+            h('td', { class: 'muted sport-usage' }, z.usage));
+        }))));
+    }
+    return h('section', { class: 'card hr-card' },
+      h('div', { class: 'card-head' },
+        h('h2', { class: 'section-label' }, icon('heartbeat'), 'Fréquences cardiaques'),
+        h('button', { type: 'button', class: 'btn', onclick: function () { editHrZone(null); } }, icon('plus'), 'Zone')),
+      body);
+  }
+
+  /* Fenêtre « Nouvelle zone » / « Modifier la zone » (ordre, suppression). Seul le nom est obligatoire. */
+  function editHrZone(zoneId) {
+    var zone = zoneId ? SL.findHrZone(data(), zoneId) : null;
+    function field(key, label, placeholder, max) {
+      return h('input', { class: 'input', type: 'text', maxlength: String(max), value: zone ? zone[key] : '',
+        placeholder: placeholder, 'aria-label': label });
+    }
+    function labelled(text, input) { return h('label', { class: 'rec-field' }, h('span', { class: 'section-label' }, text), input); }
+    var inputs = {
+      name: field('name', 'Nom de la zone', 'Ex. Endurance fondamentale (EF)', 100),
+      hr: field('hr', 'Fréquence cardiaque', 'Ex. 130–150 bpm', 50),
+      speed: field('speed', 'Vitesse', 'Ex. 8,5–9,8 km/h', 50),
+      pace: field('pace', 'Allure', 'Ex. 6\'10–7\'00/km', 50),
+      usage: field('usage', 'Usage', 'Ex. ~80 % des séances', 100)
+    };
+    var error = B.ui.formError();
+    var list = data().sport.hrZones, pos = zone ? list.indexOf(zone) : -1;
+    var dlg;
+    function redraw() { if (els) { B.ui.clear(els.root); renderVma(); } }
+    function move(dir) {
+      B.store.update(function (d) { SL.moveHrZone(d, zone.id, dir); });
+      dlg.finish('');
+      redraw();
+    }
+    var content = h('form', {
+      novalidate: true,
+      onsubmit: function (e) {
+        e.preventDefault();
+        var fields = {};
+        Object.keys(inputs).forEach(function (k) { fields[k] = inputs[k].value; });
+        var r = B.store.update(function (d) { return zone ? SL.updateHrZone(d, zone.id, fields) : SL.addHrZone(d, fields); });
+        if (!r.ok) { B.ui.setError(error, r.error); return; }
+        dlg.finish('ok');
+      }
+    },
+      h('h2', { class: 'modal-title' }, zone ? 'Modifier la zone' : 'Nouvelle zone'),
+      labelled('Zone', inputs.name),
+      h('div', { class: 'rec-field-row' }, labelled('FC', inputs.hr), labelled('Vitesse', inputs.speed)),
+      h('div', { class: 'rec-field-row' }, labelled('Allure', inputs.pace), labelled('Usage', inputs.usage)),
+      error,
+      h('div', { class: 'modal-actions' },
+        zone ? h('button', { type: 'button', class: 'btn btn-danger rec-delete', onclick: function () {
+          dlg.finish('');
+          B.ui.confirm({
+            title: 'Supprimer la zone « ' + zone.name + ' » ?', message: 'Ses valeurs seront supprimées.',
+            confirmLabel: 'Supprimer', danger: true
+          }).then(function (ok) {
+            if (ok) B.store.update(function (d) { SL.deleteHrZone(d, zone.id); });
+            redraw();
+          });
+        } }, 'Supprimer') : null,
+        pos > 0 ? h('button', { type: 'button', class: 'icon-action', title: 'Monter', 'aria-label': 'Monter la zone',
+          onclick: function () { move(-1); } }, icon('arrow-up')) : null,
+        zone && pos < list.length - 1 ? h('button', { type: 'button', class: 'icon-action', title: 'Descendre', 'aria-label': 'Descendre la zone',
+          onclick: function () { move(1); } }, icon('arrow-down')) : null,
+        h('button', { type: 'button', class: 'btn', onclick: function () { dlg.finish(''); } }, 'Annuler'),
+        h('button', { type: 'submit', class: 'btn btn-primary' }, 'Enregistrer'))
+    );
+    dlg = B.ui.openDialog(content, function (value) { if (value === 'ok') redraw(); });
+    inputs[zone ? 'hr' : 'name'].focus();
   }
 
   /* ---------- Onglet RECORDS ---------- */

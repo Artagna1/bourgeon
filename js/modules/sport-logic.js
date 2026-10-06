@@ -6,7 +6,8 @@
  *   vma: 16.5,
  *   planning: [7 textes, lundi → dimanche],
  *   recordBlocks: [{ id, name }],                       — ex. « Course », « Poids du corps »
- *   records: [{ id, blockId, name, value, date, history: [{ value, date }] }]
+ *   records: [{ id, blockId, name, value, date, history: [{ value, date }] }],
+ *   hrZones: [{ id, name, hr, speed, pace, usage }]     — fréquences cardiaques, saisies à la main
  * }
  */
 (function (B) {
@@ -203,12 +204,69 @@
     });
   }
 
+  /* ---------- Fréquences cardiaques ---------- */
+
+  /*
+   * Zones saisies à la main (« Endurance fondamentale », « 130–150 bpm »,
+   * « 8,5–9,8 km/h », « 6'10–7'00/km », « ~80 % des séances »), gardées
+   * dans l'ordre de saisie. Seul le nom est obligatoire.
+   */
+  var HR_LIMITS = { hr: ['La FC', 50], speed: ['La vitesse', 50], pace: ['L\'allure', 50], usage: ['L\'usage', 100] };
+
+  function checkHrZone(data, fields, exceptId) {
+    var name = B.validate.name(fields.name, 'Merci d\'indiquer un nom de zone.');
+    if (!name.ok) return name;
+    if (data.sport.hrZones.some(function (z) { return z.id !== exceptId && sameName(z.name, name.value); })) {
+      return { ok: false, error: 'Une zone porte déjà ce nom.' };
+    }
+    var out = { ok: true, name: name.value };
+    for (var key in HR_LIMITS) {
+      var v = String(fields[key] == null ? '' : fields[key]).trim();
+      if (v.length > HR_LIMITS[key][1]) {
+        return { ok: false, error: HR_LIMITS[key][0] + ' doit contenir au plus ' + HR_LIMITS[key][1] + ' caractères.' };
+      }
+      out[key] = v;
+    }
+    return out;
+  }
+
+  /* fields : { name, hr, speed, pace, usage } */
+  function addHrZone(data, fields) {
+    var c = checkHrZone(data, fields, null);
+    if (!c.ok) return c;
+    var zone = { id: B.store.newId(), name: c.name, hr: c.hr, speed: c.speed, pace: c.pace, usage: c.usage };
+    data.sport.hrZones.push(zone);
+    return { ok: true, zone: zone };
+  }
+
+  function updateHrZone(data, id, fields) {
+    var c = checkHrZone(data, fields, id);
+    if (!c.ok) return c;
+    var zone = byId(data.sport.hrZones, id);
+    ['name', 'hr', 'speed', 'pace', 'usage'].forEach(function (k) { zone[k] = c[k]; });
+    return { ok: true };
+  }
+
+  function deleteHrZone(data, id) {
+    data.sport.hrZones = data.sport.hrZones.filter(function (z) { return z.id !== id; });
+  }
+
+  /* Monte (dir = -1) ou descend (dir = 1) une zone dans la liste. */
+  function moveHrZone(data, id, dir) {
+    var list = data.sport.hrZones;
+    var i = list.indexOf(byId(list, id)), j = i + dir;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    list.splice(j, 0, list.splice(i, 1)[0]);
+  }
+
   B.sportLogic = {
     parseVma: parseVma, formatKmh: formatKmh, predictions: predictions, zones: zones,
     paceTable: paceTable, PERCENTS: PERCENTS, setVma: setVma, setPlanningDay: setPlanningDay,
     parseValue: parseValue, addBlock: addBlock, renameBlock: renameBlock, deleteBlock: deleteBlock,
     addRecord: addRecord, updateRecord: updateRecord, deleteRecord: deleteRecord,
     recordHistory: recordHistory, recordBoard: recordBoard, findRecord: function (data, id) { return byId(data.sport.records, id); },
-    findBlock: function (data, id) { return byId(data.sport.recordBlocks, id); }
+    findBlock: function (data, id) { return byId(data.sport.recordBlocks, id); },
+    addHrZone: addHrZone, updateHrZone: updateHrZone, deleteHrZone: deleteHrZone, moveHrZone: moveHrZone,
+    findHrZone: function (data, id) { return byId(data.sport.hrZones, id); }
   };
 })(window.Bourgeon = window.Bourgeon || {});

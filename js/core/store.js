@@ -54,7 +54,8 @@
         vma: 16.5,
         planning: ['', '', '', '', '', '', ''],  // lundi -> dimanche
         recordBlocks: [],        // { id, name } — blocs de records (« Course », « Poids du corps »…)
-        records: []              // { id, blockId, name, value, date, history: [{ value, date }] }
+        records: [],             // { id, blockId, name, value, date, history: [{ value, date }] }
+        hrZones: []              // { id, name, hr, speed, pace, usage } — fréquences cardiaques
       }
     };
   }
