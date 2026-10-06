@@ -742,6 +742,56 @@
     eq(d.sport.vma, 17.5, 'valeur invalide : inchangée');
   });
 
+  test('Sport : blocs de records (créer, renommer, supprimer)', function () {
+    var d = B.store.defaultData();
+    eq([d.sport.recordBlocks, d.sport.records], [[], []]);
+    var course = SL.addBlock(d, '  Course ').block;
+    eq(course.name, 'Course');
+    eq(SL.addBlock(d, 'course').error, 'Un bloc porte déjà ce nom.');
+    eq(SL.addBlock(d, '').error, 'Merci d\'indiquer un nom de bloc.');
+    var pdc = SL.addBlock(d, 'Poids du corps').block;
+    eq(SL.renameBlock(d, pdc.id, 'COURSE').error, 'Un bloc porte déjà ce nom.');
+    eq(SL.renameBlock(d, pdc.id, 'Gainage').ok, true);
+    eq(SL.recordBoard(d).map(function (g) { return g.block.name; }), ['Course', 'Gainage'], 'ordre alphabétique');
+    SL.addRecord(d, course.id, { name: 'Test 3000 m', value: '11:42', date: '2026-10-01' }, '2026-10-06');
+    SL.addRecord(d, pdc.id, { name: 'Max pompes', value: '70', date: '2026-10-01' }, '2026-10-06');
+    SL.deleteBlock(d, course.id);
+    eq(d.sport.recordBlocks.length, 1);
+    eq(d.sport.records.map(function (r) { return r.name; }), ['Max pompes'], 'exercices du bloc supprimés avec lui');
+  });
+
+  test('Sport : records (saisie, mise à jour, historique)', function () {
+    var d = B.store.defaultData();
+    var b = SL.addBlock(d, 'Poids du corps').block;
+    var today = '2026-10-06';
+    var r = SL.addRecord(d, b.id, { name: 'Max pompes', value: ' 70 ', date: '2026-10-01' }, today);
+    eq([r.ok, r.record.value, r.record.date, r.record.history], [true, '70', '2026-10-01', []]);
+    eq(SL.addRecord(d, b.id, { name: 'max POMPES', value: '1', date: today }, today).error, 'Ce bloc contient déjà un exercice de ce nom.');
+    eq(SL.addRecord(d, b.id, { name: 'Tractions', value: '', date: today }, today).error, 'Merci d\'indiquer un résultat.');
+    eq(SL.addRecord(d, b.id, { name: 'Tractions', value: '12', date: '2026-10-07' }, today).error, 'La date ne peut pas être dans le futur.');
+    eq(SL.addRecord(d, b.id, { name: 'Tractions', value: '12', date: '' }, today).error, 'Merci d\'indiquer une date valide.');
+    eq(SL.parseValue(new Array(52).join('x')).error, 'Le résultat doit contenir au plus 50 caractères.');
+    var id = r.record.id;
+    // Nouveau résultat : l'ancien part dans l'historique
+    SL.updateRecord(d, id, { name: 'Max pompes', value: '75', date: today }, today);
+    // Même résultat, date corrigée : pas d'historique en plus
+    SL.updateRecord(d, id, { name: 'Pompes (max)', value: '75', date: '2026-10-05' }, today);
+    SL.updateRecord(d, id, { name: 'Pompes (max)', value: '80', date: today }, today);
+    var rec = SL.findRecord(d, id);
+    eq([rec.name, rec.value, rec.date], ['Pompes (max)', '80', today]);
+    eq(SL.recordHistory(rec), [{ value: '75', date: '2026-10-05' }, { value: '70', date: '2026-10-01' }], 'plus récent d\'abord');
+    SL.addRecord(d, b.id, { name: 'Gainage', value: '2 min 30', date: today }, today);
+    eq(SL.recordBoard(d)[0].records.map(function (x) { return x.name; }), ['Gainage', 'Pompes (max)']);
+    SL.deleteRecord(d, id);
+    eq(d.sport.records.length, 1);
+  });
+
+  test('Sport : records ajoutés aux anciennes données', function () {
+    var old = { version: 1, sport: { vma: 15, planning: ['', '', '', '', '', '', ''] } };
+    var d = B.store.parse(JSON.stringify(old)).data;
+    eq([d.sport.vma, d.sport.recordBlocks, d.sport.records], [15, [], []]);
+  });
+
   /* ---------- Synchronisation ---------- */
 
   var SY = B.sync.logic;

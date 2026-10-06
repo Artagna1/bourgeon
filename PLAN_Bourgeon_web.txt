@@ -198,6 +198,8 @@ ORGANISATION DES FICHIERS
     [x] Onglet PLANNING : semaine type, un texte par jour.
     [x] Onglet COURSE (VMA) : saisie VMA, prédictions Riegel, zones d'effort,
         tableau de temps de passage (% VMA).
+    [x] Onglet RECORDS (ajouté le 06/10/2026) : blocs libres, exercices,
+        résultat en texte libre, date du record, historique.
     Fichiers : js/modules/sport-logic.js (calculs, testés) et
     js/modules/sport.js (affichage). Choix et précisions :
       - planning : le jour actuel est mis en évidence ; un brouillon non
@@ -566,3 +568,23 @@ JOURNAL DE BORD
              est gardé dans chaque groupe. Données : revisions.tags
              [{ id, name }] et concept.tagId (ajoutés automatiquement aux
              données existantes). 68 tests.
+
+06/10/2026 — Sport : nouvel onglet « Records » (Planning · Course (VMA) ·
+             Records ; sur mobile « Course » au lieu de « Course (VMA) »).
+             Rien de propre à un sport : on crée des BLOCS (« Course »,
+             « Poids du corps »…) et dans chacun des EXERCICES (« Test
+             3000 m », « Max rep pompes »…) avec un résultat en texte libre
+             (« 11:42 », « 70 », « 100 kg », 50 car. max) et la date du
+             record (aujourd'hui par défaut, modifiable, pas dans le futur).
+             Une carte par bloc ; chaque ligne montre exercice, résultat et
+             date ; toucher une ligne pour la modifier. Changer le résultat
+             garde l'ancien (avec sa date) dans « Anciens records ».
+             Blocs et exercices par ordre alphabétique, noms sans doublon
+             (bloc : dans toute la liste ; exercice : dans son bloc).
+             Supprimer un bloc supprime ses exercices (confirmation).
+             Bouton « + Bloc » en haut (rond « + » sur mobile).
+             Données : sport.recordBlocks [{ id, name }] et sport.records
+             [{ id, blockId, name, value, date, history: [{ value, date }] }]
+             (ajoutés automatiquement aux données existantes ; synchronisés
+             avec le reste du module Sport). Cache hors ligne v10.
+             71 tests + captures bureau clair / sombre, mobile, fenêtre.

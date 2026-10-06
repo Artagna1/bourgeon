@@ -1075,6 +1075,32 @@ select.input { padding-right: 10px; }
 .sport-grid td { font: 500 14.5px var(--font); }
 .sport-grid .ref { color: var(--accent); font-weight: 700; background: var(--accent-soft); }
 
+/* Records : un bloc = une carte, un exercice = une ligne (nom, résultat, date) */
+.rec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 16px; align-items: start; }
+.rec-block { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; }
+.rec-block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rec-block-name { font: 400 19px var(--font-title); color: var(--ink-strong); overflow-wrap: anywhere; }
+.rec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rec-list li + li { border-top: 1px solid var(--rule); }
+.rec-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name value" "date value";
+  align-items: center; column-gap: 12px; row-gap: 2px; width: 100%; padding: 10px 8px; margin: 0 -8px; box-sizing: content-box;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.rec-row:hover { background: var(--hover); }
+.rec-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rec-name { grid-area: name; font-size: 15px; color: var(--ink-strong); overflow-wrap: anywhere; }
+.rec-value { grid-area: value; font: 600 22px/1.1 var(--font); color: var(--accent); text-align: right; overflow-wrap: anywhere; max-width: 160px; }
+.rec-date { grid-area: date; font-size: 12.5px; color: var(--muted); }
+.rec-add { align-self: flex-start; }
+.rec-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; min-width: 0; }
+.rec-field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.rec-delete { margin-right: auto; }
+.rec-history { margin-top: 14px; font-size: 14px; }
+.rec-history summary { cursor: pointer; color: var(--muted); }
+.rec-history ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rec-history li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--rule); }
+
 /* ============ Fenêtres modales ============ */
 .modal {
   width: min(480px, calc(100vw - 32px));

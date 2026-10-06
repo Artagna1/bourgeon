@@ -64,7 +64,8 @@
       d.habits.items.length === 0 && d.focus.sessions.length === 0 &&
       d.goals.items.length === 0 && d.eisenhower.tasks.length === 0 &&
       d.revisions.subjects.length === 0 &&
-      d.sport.planning.every(function (p) { return !p; });
+      d.sport.planning.every(function (p) { return !p; }) &&
+      d.sport.recordBlocks.length === 0;
   }
 
   /* ================= Moteur ================= */

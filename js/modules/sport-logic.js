@@ -2,7 +2,12 @@
  * Bourgeon — module SPORT : calculs de course à pied (sans affichage).
  *
  * Tout part de la VMA (vitesse maximale aérobie, en km/h).
- * Données : data.sport = { vma: 16.5, planning: [7 textes, lundi → dimanche] }
+ * Données : data.sport = {
+ *   vma: 16.5,
+ *   planning: [7 textes, lundi → dimanche],
+ *   recordBlocks: [{ id, name }],                       — ex. « Course », « Poids du corps »
+ *   records: [{ id, blockId, name, value, date, history: [{ value, date }] }]
+ * }
  */
 (function (B) {
   'use strict';
@@ -83,8 +88,127 @@
     data.sport.planning[dayIndex] = String(raw == null ? '' : raw).trim();
   }
 
+  /* ---------- Records ---------- */
+
+  /*
+   * Rien n'est propre à un sport : un BLOC (« Course », « Poids du corps »…)
+   * regroupe des EXERCICES (« Test 3000 m », « Max pompes »…), chacun avec
+   * son résultat en texte libre (« 11:42 », « 70 », « 100 kg ») et la date
+   * du record. Changer le résultat garde l'ancien dans l'historique.
+   */
+  var MAX_VALUE = 50;
+
+  /* Ordre alphabétique, sans tenir compte des majuscules ni des accents (« Série 2 » avant « Série 10 »). */
+  function byName(a, b) { return a.name.localeCompare(b.name, 'fr', { numeric: true, sensitivity: 'base' }); }
+  function sameName(a, b) { return a.localeCompare(b, 'fr', { sensitivity: 'base' }) === 0; }
+  function byId(list, id) { return list.filter(function (x) { return x.id === id; })[0] || null; }
+
+  function parseValue(raw) {
+    var v = String(raw == null ? '' : raw).trim();
+    if (v === '') return { ok: false, error: 'Merci d\'indiquer un résultat.' };
+    if (v.length > MAX_VALUE) return { ok: false, error: 'Le résultat doit contenir au plus ' + MAX_VALUE + ' caractères.' };
+    return { ok: true, value: v };
+  }
+
+  /* Date du record : valide et pas dans le futur. */
+  function parseRecordDate(s, today) {
+    var r = B.validate.date(s);
+    if (!r.ok) return r;
+    if (s > (today || D.today())) return { ok: false, error: 'La date ne peut pas être dans le futur.' };
+    return r;
+  }
+
+  function blockName(data, rawName, exceptId) {
+    var name = B.validate.name(rawName, 'Merci d\'indiquer un nom de bloc.');
+    if (!name.ok) return name;
+    if (data.sport.recordBlocks.some(function (b) { return b.id !== exceptId && sameName(b.name, name.value); })) {
+      return { ok: false, error: 'Un bloc porte déjà ce nom.' };
+    }
+    return name;
+  }
+
+  function addBlock(data, rawName) {
+    var name = blockName(data, rawName);
+    if (!name.ok) return name;
+    var block = { id: B.store.newId(), name: name.value };
+    data.sport.recordBlocks.push(block);
+    return { ok: true, block: block };
+  }
+
+  function renameBlock(data, id, rawName) {
+    var name = blockName(data, rawName, id);
+    if (!name.ok) return name;
+    byId(data.sport.recordBlocks, id).name = name.value;
+    return { ok: true };
+  }
+
+  /* Supprimer un bloc supprime ses exercices. */
+  function deleteBlock(data, id) {
+    data.sport.recordBlocks = data.sport.recordBlocks.filter(function (b) { return b.id !== id; });
+    data.sport.records = data.sport.records.filter(function (r) { return r.blockId !== id; });
+  }
+
+  /* Vérifie nom, résultat et date d'un exercice. fields : { name, value, date }. */
+  function checkRecord(data, blockId, fields, exceptId, today) {
+    var name = B.validate.name(fields.name, 'Merci d\'indiquer un nom d\'exercice.');
+    if (!name.ok) return name;
+    if (data.sport.records.some(function (r) { return r.blockId === blockId && r.id !== exceptId && sameName(r.name, name.value); })) {
+      return { ok: false, error: 'Ce bloc contient déjà un exercice de ce nom.' };
+    }
+    var value = parseValue(fields.value);
+    if (!value.ok) return value;
+    var date = parseRecordDate(fields.date, today);
+    if (!date.ok) return date;
+    return { ok: true, name: name.value, value: value.value, date: date.value };
+  }
+
+  function addRecord(data, blockId, fields, today) {
+    var c = checkRecord(data, blockId, fields, null, today);
+    if (!c.ok) return c;
+    var rec = { id: B.store.newId(), blockId: blockId, name: c.name, value: c.value, date: c.date, history: [] };
+    data.sport.records.push(rec);
+    return { ok: true, record: rec };
+  }
+
+  /*
+   * Modifie un exercice. Si le résultat change, l'ancien (avec sa date) part
+   * dans l'historique ; sinon on corrige simplement le nom ou la date.
+   */
+  function updateRecord(data, id, fields, today) {
+    var rec = byId(data.sport.records, id);
+    var c = checkRecord(data, rec.blockId, fields, id, today);
+    if (!c.ok) return c;
+    if (c.value !== rec.value) {
+      rec.history = (rec.history || []).concat([{ value: rec.value, date: rec.date }]);
+    }
+    rec.name = c.name;
+    rec.value = c.value;
+    rec.date = c.date;
+    return { ok: true };
+  }
+
+  function deleteRecord(data, id) {
+    data.sport.records = data.sport.records.filter(function (r) { return r.id !== id; });
+  }
+
+  /* Anciens résultats d'un exercice, du plus récent au plus ancien. */
+  function recordHistory(rec) {
+    return (rec.history || []).slice().reverse();
+  }
+
+  /* Blocs et leurs exercices, par ordre alphabétique. */
+  function recordBoard(data) {
+    return data.sport.recordBlocks.slice().sort(byName).map(function (b) {
+      return { block: b, records: data.sport.records.filter(function (r) { return r.blockId === b.id; }).sort(byName) };
+    });
+  }
+
   B.sportLogic = {
     parseVma: parseVma, formatKmh: formatKmh, predictions: predictions, zones: zones,
-    paceTable: paceTable, PERCENTS: PERCENTS, setVma: setVma, setPlanningDay: setPlanningDay
+    paceTable: paceTable, PERCENTS: PERCENTS, setVma: setVma, setPlanningDay: setPlanningDay,
+    parseValue: parseValue, addBlock: addBlock, renameBlock: renameBlock, deleteBlock: deleteBlock,
+    addRecord: addRecord, updateRecord: updateRecord, deleteRecord: deleteRecord,
+    recordHistory: recordHistory, recordBoard: recordBoard, findRecord: function (data, id) { return byId(data.sport.records, id); },
+    findBlock: function (data, id) { return byId(data.sport.recordBlocks, id); }
   };
 })(window.Bourgeon = window.Bourgeon || {});

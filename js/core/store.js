@@ -52,7 +52,9 @@
       },
       sport: {
         vma: 16.5,
-        planning: ['', '', '', '', '', '', '']   // lundi -> dimanche
+        planning: ['', '', '', '', '', '', ''],  // lundi -> dimanche
+        recordBlocks: [],        // { id, name } — blocs de records (« Course », « Poids du corps »…)
+        records: []              // { id, blockId, name, value, date, history: [{ value, date }] }
       }
     };
   }

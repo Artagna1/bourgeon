@@ -6,6 +6,8 @@
  * bouton « Enregistrer »).
  * Onglet COURSE (VMA) : la VMA, les chronos prévus (Riegel), les allures
  * par zone d'effort et le tableau des temps de passage.
+ * Onglet RECORDS : des blocs libres (« Course », « Poids du corps »…), chacun
+ * avec ses exercices, leur meilleur résultat et la date du record.
  */
 (function (B) {
   'use strict';
@@ -24,6 +26,10 @@
     if (tabId === 'vma') {
       if (mobile) ctx.corner.appendChild(B.ui.cornerButton('flask', 'Test VMA', function () { editVma(true); }));
       renderVma();
+    } else if (tabId === 'records') {
+      if (mobile) ctx.corner.appendChild(B.ui.cornerButton('plus', 'Nouveau bloc', function () { editBlock(null); }));
+      else ctx.actions.appendChild(h('button', { type: 'button', class: 'btn btn-primary', onclick: function () { editBlock(null); } }, icon('plus'), 'Bloc'));
+      renderRecords();
     } else {
       renderPlanning();
     }
@@ -213,6 +219,152 @@
     input.focus();
     input.select();
   }
+
+  /* ---------- Onglet RECORDS ---------- */
+
+  function renderRecords() {
+    var board = SL.recordBoard(data());
+    if (board.length === 0) {
+      els.root.appendChild(h('div', { class: 'card empty-state' },
+        icon('trophy', 'empty-icon'),
+        h('p', { class: 'empty-title' }, 'Aucun record pour le moment'),
+        h('p', { class: 'muted' }, 'Crée un bloc (ex. « Course », « Poids du corps »), puis ajoute-y tes exercices et tes meilleurs résultats.'),
+        h('button', { type: 'button', class: 'btn btn-primary', onclick: function () { editBlock(null); } }, icon('plus'), 'Créer un bloc')));
+      return;
+    }
+    els.root.appendChild(h('div', { class: 'rec-grid' }, board.map(function (g) {
+      var b = g.block;
+      return h('section', { class: 'card rec-block' },
+        h('div', { class: 'rec-block-head' },
+          h('h2', { class: 'rec-block-name' }, b.name),
+          h('button', { type: 'button', class: 'icon-action', title: 'Modifier le bloc', 'aria-label': 'Modifier le bloc ' + b.name,
+            onclick: function () { editBlock(b.id); } }, icon('pencil-simple'))),
+        g.records.length === 0
+          ? h('p', { class: 'muted small' }, 'Aucun exercice dans ce bloc.')
+          : h('ul', { class: 'rec-list' }, g.records.map(function (r) {
+            return h('li', null, h('button', {
+              type: 'button', class: 'rec-row', title: 'Modifier', onclick: function () { editRecord(b.id, r.id); }
+            },
+              h('span', { class: 'rec-name' }, r.name),
+              h('span', { class: 'rec-value num' }, r.value),
+              h('span', { class: 'rec-date num' }, D.formatShort(r.date))));
+          })),
+        h('button', { type: 'button', class: 'btn rec-add', onclick: function () { editRecord(b.id, null); } }, icon('plus'), 'Exercice'));
+    })));
+  }
+
+  function redrawRecords() {
+    if (!els) return;
+    B.ui.clear(els.root);
+    renderRecords();
+  }
+
+  /* Fenêtre « Nouveau bloc » / « Modifier le bloc » (avec suppression). */
+  function editBlock(blockId) {
+    var block = blockId ? SL.findBlock(data(), blockId) : null;
+    var input = h('input', { class: 'input', type: 'text', maxlength: '100', value: block ? block.name : '',
+      placeholder: 'Ex. Course, Poids du corps, Muscu…', 'aria-label': 'Nom du bloc' });
+    var error = B.ui.formError();
+    var dlg;
+    var content = h('form', {
+      novalidate: true,
+      onsubmit: function (e) {
+        e.preventDefault();
+        var r = B.store.update(function (d) { return block ? SL.renameBlock(d, block.id, input.value) : SL.addBlock(d, input.value); });
+        if (!r.ok) { B.ui.setError(error, r.error); input.focus(); return; }
+        dlg.finish('ok');
+      }
+    },
+      h('h2', { class: 'modal-title' }, block ? 'Modifier le bloc' : 'Nouveau bloc'),
+      h('label', { class: 'rec-field' }, h('span', { class: 'section-label' }, 'Nom du bloc'), input),
+      error,
+      h('div', { class: 'modal-actions' },
+        block ? h('button', { type: 'button', class: 'btn btn-danger rec-delete', onclick: function () {
+          var n = data().sport.records.filter(function (r) { return r.blockId === block.id; }).length;
+          dlg.finish('');
+          B.ui.confirm({
+            title: 'Supprimer le bloc « ' + block.name + ' » ?',
+            message: n ? 'Ses ' + B.ui.plural(n, 'exercice sera supprimé', 'exercices seront supprimés') + ' avec lui.' : 'Il ne contient aucun exercice.',
+            confirmLabel: 'Supprimer', danger: true
+          }).then(function (ok) {
+            if (ok) B.store.update(function (d) { SL.deleteBlock(d, block.id); });
+            redrawRecords();
+          });
+        } }, 'Supprimer') : null,
+        h('button', { type: 'button', class: 'btn', onclick: function () { dlg.finish(''); } }, 'Annuler'),
+        h('button', { type: 'submit', class: 'btn btn-primary' }, block ? 'Enregistrer' : 'Créer'))
+    );
+    dlg = B.ui.openDialog(content, function (value) { if (value === 'ok') redrawRecords(); });
+    input.focus();
+    if (block) input.select();
+  }
+
+  /*
+   * Fenêtre d'un exercice : nom, résultat et date (aujourd'hui par défaut).
+   * Pour un exercice existant : historique des anciens résultats et suppression.
+   */
+  function editRecord(blockId, recordId) {
+    var block = SL.findBlock(data(), blockId);
+    var rec = recordId ? SL.findRecord(data(), recordId) : null;
+    var nameInput = h('input', { class: 'input', type: 'text', maxlength: '100', value: rec ? rec.name : '',
+      placeholder: 'Ex. Test 3000 m, Max pompes…', 'aria-label': 'Nom de l\'exercice' });
+    var valueInput = h('input', { class: 'input', type: 'text', maxlength: '50', value: rec ? rec.value : '',
+      placeholder: 'Ex. 11:42, 70, 100 kg…', 'aria-label': 'Résultat' });
+    var dateInput = h('input', { class: 'input', type: 'date', value: rec ? rec.date : D.today(),
+      min: B.validate.MIN_DATE, max: D.today(), 'aria-label': 'Date du record' });
+    var error = B.ui.formError();
+
+    // Nouveau résultat : la date passe à aujourd'hui ; même résultat : date du record gardée.
+    if (rec) {
+      valueInput.addEventListener('input', function () {
+        dateInput.value = valueInput.value.trim() === rec.value ? rec.date : D.today();
+      });
+    }
+
+    var history = rec ? SL.recordHistory(rec) : [];
+    var dlg;
+    var content = h('form', {
+      novalidate: true,
+      onsubmit: function (e) {
+        e.preventDefault();
+        var fields = { name: nameInput.value, value: valueInput.value, date: dateInput.value };
+        var r = B.store.update(function (d) { return rec ? SL.updateRecord(d, rec.id, fields) : SL.addRecord(d, blockId, fields); });
+        if (!r.ok) { B.ui.setError(error, r.error); return; }
+        dlg.finish('ok');
+      }
+    },
+      h('h2', { class: 'modal-title' }, rec ? 'Modifier le record' : 'Nouvel exercice'),
+      h('p', { class: 'modal-text' }, 'Bloc « ' + block.name + ' »'),
+      h('label', { class: 'rec-field' }, h('span', { class: 'section-label' }, 'Exercice'), nameInput),
+      h('div', { class: 'rec-field-row' },
+        h('label', { class: 'rec-field' }, h('span', { class: 'section-label' }, 'Résultat'), valueInput),
+        h('label', { class: 'rec-field' }, h('span', { class: 'section-label' }, 'Date'), dateInput)),
+      error,
+      history.length ? h('details', { class: 'rec-history' },
+        h('summary', null, 'Anciens records (' + history.length + ')'),
+        h('ul', null, history.map(function (x) {
+          return h('li', null, h('span', { class: 'num' }, x.value), h('span', { class: 'muted num' }, D.formatShort(x.date)));
+        }))) : null,
+      h('div', { class: 'modal-actions' },
+        rec ? h('button', { type: 'button', class: 'btn btn-danger rec-delete', onclick: function () {
+          dlg.finish('');
+          B.ui.confirm({
+            title: 'Supprimer « ' + rec.name + ' » ?',
+            message: 'Le record et son historique seront supprimés.',
+            confirmLabel: 'Supprimer', danger: true
+          }).then(function (ok) {
+            if (ok) B.store.update(function (d) { SL.deleteRecord(d, rec.id); });
+            redrawRecords();
+          });
+        } }, 'Supprimer') : null,
+        h('button', { type: 'button', class: 'btn', onclick: function () { dlg.finish(''); } }, 'Annuler'),
+        h('button', { type: 'submit', class: 'btn btn-primary' }, 'Enregistrer'))
+    );
+    dlg = B.ui.openDialog(content, function (value) { if (value === 'ok') redrawRecords(); });
+    (rec ? valueInput : nameInput).focus();
+    if (rec) valueInput.select();
+  }
+
 
   function leave() {
     saveDrafts();

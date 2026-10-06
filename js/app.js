@@ -42,7 +42,8 @@
       tabs: [{ id: 'tree', label: 'Arborescence' }, { id: 'today', label: 'Aujourd\'hui' }],
       mobileTabs: [{ id: 'today', label: 'Aujourd\'hui' }, { id: 'tree', label: 'Arborescence' }] },
     { id: 'sport', label: 'Sport', icon: 'barbell', kicker: 'Entraînement', step: 8,
-      tabs: [{ id: 'planning', label: 'Planning' }, { id: 'vma', label: 'Course (VMA)' }] }
+      tabs: [{ id: 'planning', label: 'Planning' }, { id: 'vma', label: 'Course (VMA)' }, { id: 'records', label: 'Records' }],
+      mobileTabs: [{ id: 'planning', label: 'Planning' }, { id: 'vma', label: 'Course' }, { id: 'records', label: 'Records' }] }
   ];
 
   var THEME_KEY = 'bourgeon.theme';
