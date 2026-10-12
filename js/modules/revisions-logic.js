@@ -372,6 +372,11 @@
     byId(rev(data).concepts, conceptId).tagId = tagId || null;
   }
 
+  /* Retire le tag de tous les cours (les tags eux-mêmes sont conservés). */
+  function clearAllTags(data) {
+    rev(data).concepts.forEach(function (c) { c.tagId = null; });
+  }
+
   /* Tag d'un cours (null si aucun, ou si le tag a été supprimé). */
   function tagOf(data, concept) {
     return (concept.tagId && byId(tags(data), concept.tagId)) || null;
@@ -419,6 +424,6 @@
     conceptState: conceptState, stateOf: stateOf, validate: validate, undo: undo,
     todayList: todayList, lateStyle: lateStyle,
     sortedTags: sortedTags, addTag: addTag, renameTag: renameTag, deleteTag: deleteTag,
-    setConceptTag: setConceptTag, tagOf: tagOf, groupByTag: groupByTag
+    setConceptTag: setConceptTag, clearAllTags: clearAllTags, tagOf: tagOf, groupByTag: groupByTag
   };
 })(window.Bourgeon = window.Bourgeon || {});

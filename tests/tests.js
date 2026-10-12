@@ -419,6 +419,16 @@
     eq([RL.tagOf(t.d, t.c), t.c.tagId, t.d.revisions.tags.length], [null, null, 1], 'supprimé : retiré des cours');
   });
 
+  test('Révisions : retirer tous les tags des cours (tags conservés)', function () {
+    var t = revData();
+    var c2 = RL.addConcept(t.d, t.ch.id, 'Primitives', '2026-03-01').concept;
+    var matin = RL.addTag(t.d, 'Matin').tag;
+    RL.setConceptTag(t.d, t.c.id, matin.id);
+    RL.setConceptTag(t.d, c2.id, matin.id);
+    RL.clearAllTags(t.d);
+    eq([t.c.tagId, c2.tagId, t.d.revisions.tags.length], [null, null, 1]);
+  });
+
   test('Révisions : le tag reste jusqu\'à la validation du cours', function () {
     var t = revData();
     var tag = RL.addTag(t.d, 'Matin').tag;

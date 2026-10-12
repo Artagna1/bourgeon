@@ -603,3 +603,14 @@ JOURNAL DE BORD
              existantes ; synchronisé avec le reste du module Sport).
              Cache hors ligne v11. 72 tests + captures bureau, mobile,
              fenêtre.
+
+12/10/2026 — Révisions · Aujourd'hui : TRI RAPIDE des tags (bouton
+             « Tri rapide » à côté de « Tags » ; sur mobile, bouton éclair
+             en haut à droite). Les cours SANS tag défilent un par un (ordre
+             de la liste) ; un clic sur un tag le pose et passe au suivant.
+             Aussi : « Créer et poser » (nouveau tag posé sur le cours
+             affiché), Précédent, Passer, Retirer le tag (si le cours en a
+             un), barre de progression, écran « Terminé ! ». Bouton
+             « Supprimer tous les tags actuels » (confirmation) : retire le
+             tag de tous les cours, garde les tags, puis relance le tri.
+             Rien de l'existant n'a changé. Cache hors ligne v12. 73 tests.
